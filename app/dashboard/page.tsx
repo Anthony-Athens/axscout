@@ -25,6 +25,18 @@ async function getLastSuccessfulRefresh() {
   });
 }
 
+async function getTrackedGamesCount() {
+  const { count, error } = await supabase
+    .from("fact_games")
+    .select("*", { count: "exact", head: true });
+
+  if (error || count === null) {
+    return 0;
+  }
+
+  return count;
+}
+
 async function getTeams() {
   const { data, error } = await supabase
     .from("teams")
@@ -41,6 +53,7 @@ async function getTeams() {
 export default async function DashboardPage() {
   const lastUpdated = await getLastSuccessfulRefresh();
   const teams = await getTeams();
+  const trackedGamesCount = await getTrackedGamesCount();
 
   return (
     <div>
@@ -52,7 +65,7 @@ export default async function DashboardPage() {
 
       <DashboardGrid>
         <StatCard label="Favorite Teams" value="0" helperText="No teams selected yet" />
-        <StatCard label="Tracked Games" value="0" helperText="Coming soon" />
+        <StatCard label="Tracked Games" value={trackedGamesCount} helperText="Loaded from warehouse" />
         <StatCard label="Model Accuracy" value="--" helperText="Coming soon" />
         <StatCard label="Last Updated" value={lastUpdated} helperText="Latest successful data refresh" />
       </DashboardGrid>
