@@ -1,12 +1,19 @@
 type GameRow = {
   mlb_game_pk: number;
   game_date: string;
-  home_team: {
-    abbreviation: string;
-  } | null;
-  away_team: {
-    abbreviation: string;
-  } | null;
+
+
+  home_team:
+  | { abbreviation: string }
+  | { abbreviation: string }[]
+  | null;
+  away_team:
+  | { abbreviation: string }
+  | { abbreviation: string }[]
+  | null;
+
+
+
   home_score: number | null;
   away_score: number | null;
   status: string | null;
@@ -20,6 +27,16 @@ export default function TodaysGamesTable({ games }: { games: GameRow[] }) {
       </p>
     );
   }
+
+  const getAbbreviation = (
+    team: { abbreviation: string } | { abbreviation: string }[] | null
+  ) => {
+    if (Array.isArray(team)) {
+      return team[0]?.abbreviation ?? "TBD";
+  }
+
+    return team?.abbreviation ?? "TBD";
+  };
 
   return (
     <div className="overflow-x-auto">
@@ -36,8 +53,7 @@ export default function TodaysGamesTable({ games }: { games: GameRow[] }) {
           {games.map((game) => (
             <tr key={game.mlb_game_pk} className="border-b border-slate-900">
               <td className="py-3 font-semibold text-white">
-                {game.away_team?.abbreviation ?? "TBD"} @{" "}
-                {game.home_team?.abbreviation ?? "TBD"}
+                {getAbbreviation(game.away_team)} @ {getAbbreviation(game.home_team)}
               </td>
 
               <td className="py-3 text-slate-300">{game.status ?? "--"}</td>

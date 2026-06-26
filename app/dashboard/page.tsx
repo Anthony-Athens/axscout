@@ -1,6 +1,6 @@
 import PageHeader from "@/components/layout/PageHeader";
 import DashboardGrid from "@/components/ui/DashboardGrid";
-import EmptyState from "@/components/ui/EmptyState";
+
 import SectionCard from "@/components/ui/SectionCard";
 import StatCard from "@/components/ui/StatCard";
 import { supabase } from "@/lib/supabase/client";
@@ -8,6 +8,7 @@ import TeamSelector from "@/components/TeamSelector";
 import TeamSeasonTable from "@/components/TeamSeasonTable";
 import TodaysGamesTable from "@/components/TodaysGamesTable";
 import { createClient } from "@/lib/supabase/server";
+import FavoriteTeamsOverview from "@/components/FavoriteTeamsOverview";
 
 async function getLastSuccessfulRefresh() {
   const { data, error } = await supabase
@@ -107,6 +108,24 @@ async function getFavoriteTeamIds(userId: string | undefined) {
   return data.map((row) => row.team_id);
 }
 
+async function getFavoriteTeamSeasonRows(favoriteTeamIds: number[]) {
+  if (!favoriteTeamIds.length) return [];
+
+  const { data, error } = await supabase
+    .from("agg_team_season")
+    .select(
+      "team_abbreviation, games_played, wins, losses, winning_percentage, runs_scored, runs_allowed, run_differential"
+    )
+    .in("team_key", favoriteTeamIds)
+    .order("winning_percentage", { ascending: false });
+
+  if (error || !data) {
+    return [];
+  }
+
+  return data;
+}
+
 export default async function DashboardPage() {
   const lastUpdated = await getLastSuccessfulRefresh();
   const teams = await getTeams();
@@ -120,6 +139,9 @@ export default async function DashboardPage() {
     } = await supabaseServer.auth.getUser();
 
     const favoriteTeamIds = await getFavoriteTeamIds(user?.id);
+
+    const favoriteTeamSeasonRows =
+        await getFavoriteTeamSeasonRows(favoriteTeamIds);
  
 
   return (
@@ -140,6 +162,15 @@ export default async function DashboardPage() {
         <StatCard label="Model Accuracy" value="--" helperText="Coming soon" />
         <StatCard label="Last Updated" value={lastUpdated} helperText="Latest successful data refresh" />
       </DashboardGrid>
+
+      <div className="mt-8">
+        <SectionCard
+            title="My Teams"
+            description="A personalized snapshot of your selected MLB teams."
+            >
+        <FavoriteTeamsOverview teams={favoriteTeamSeasonRows} />
+        </SectionCard>
+      </div>
 
       <div className="mt-8">
         <SectionCard
