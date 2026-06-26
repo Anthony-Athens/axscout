@@ -6,6 +6,7 @@ import StatCard from "@/components/ui/StatCard";
 import { supabase } from "@/lib/supabase/client";
 import TeamSelector from "@/components/TeamSelector";
 import TeamSeasonTable from "@/components/TeamSeasonTable";
+import TodaysGamesTable from "@/components/TodaysGamesTable";
 
 async function getLastSuccessfulRefresh() {
   const { data, error } = await supabase
@@ -66,11 +67,37 @@ async function getTeamSeasonRows() {
   return data;
 }
 
+async function getTodaysGames() {
+  const today = new Date().toISOString().slice(0, 10);
+
+  const { data, error } = await supabase
+    .from("fact_games")
+    .select(`
+      mlb_game_pk,
+      game_date,
+      home_score,
+      away_score,
+      status,
+      home_team:dim_teams!fact_games_home_team_key_fkey(abbreviation),
+      away_team:dim_teams!fact_games_away_team_key_fkey(abbreviation)
+    `)
+    .eq("game_date", today)
+    .order("mlb_game_pk", { ascending: true });
+
+  if (error || !data) {
+    return [];
+  }
+
+  return data;
+}
+
 export default async function DashboardPage() {
   const lastUpdated = await getLastSuccessfulRefresh();
   const teams = await getTeams();
   const trackedGamesCount = await getTrackedGamesCount();
   const teamSeasonRows = await getTeamSeasonRows();
+  const todaysGames = await getTodaysGames();
+ 
 
   return (
     <div>
@@ -104,6 +131,18 @@ export default async function DashboardPage() {
             <TeamSeasonTable rows={teamSeasonRows} />
         </SectionCard>
      </div>
+
+     <div className="mt-8">
+        <SectionCard
+            title="Today’s Games"
+            description="Current MLB matchups loaded from the AX Scout warehouse."
+        >
+            <TodaysGamesTable games={todaysGames} />
+        </SectionCard>
+    </div>
+
+
+
 
     </div>
   );
