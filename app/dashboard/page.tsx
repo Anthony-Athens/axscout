@@ -1,14 +1,10 @@
 import PageHeader from "@/components/layout/PageHeader";
 import DashboardGrid from "@/components/ui/DashboardGrid";
-
 import SectionCard from "@/components/ui/SectionCard";
 import StatCard from "@/components/ui/StatCard";
-import { supabase } from "@/lib/supabase/client";
-import TeamSelector from "@/components/TeamSelector";
 import TeamSeasonTable from "@/components/TeamSeasonTable";
 import TodaysGamesTable from "@/components/TodaysGamesTable";
-import { createClient } from "@/lib/supabase/server";
-import FavoriteTeamsOverview from "@/components/FavoriteTeamsOverview";
+import { supabase } from "@/lib/supabase/client";
 
 async function getLastSuccessfulRefresh() {
   const { data, error } = await supabase
@@ -39,19 +35,6 @@ async function getTrackedGamesCount() {
   }
 
   return count;
-}
-
-async function getTeams() {
-  const { data, error } = await supabase
-    .from("teams")
-    .select("id, abbreviation, name, league, division")
-    .order("name", { ascending: true });
-
-  if (error || !data) {
-    return [];
-  }
-
-  return data;
 }
 
 async function getTeamSeasonRows() {
@@ -93,120 +76,52 @@ async function getTodaysGames() {
   return data;
 }
 
-async function getFavoriteTeamIds(userId: string | undefined) {
-  if (!userId) return [];
-
-  const supabaseServer = await createClient();
-
-  const { data, error } = await supabaseServer
-    .from("user_favorite_teams")
-    .select("team_id")
-    .eq("user_id", userId);
-
-  if (error || !data) return [];
-
-  return data.map((row) => row.team_id);
-}
-
-async function getFavoriteTeamSeasonRows(favoriteTeamIds: number[]) {
-  if (!favoriteTeamIds.length) return [];
-
-  const { data, error } = await supabase
-    .from("agg_team_season")
-    .select(
-      "team_abbreviation, games_played, wins, losses, winning_percentage, runs_scored, runs_allowed, run_differential"
-    )
-    .in("team_key", favoriteTeamIds)
-    .order("winning_percentage", { ascending: false });
-
-  if (error || !data) {
-    return [];
-  }
-
-  return data;
-}
-
 export default async function DashboardPage() {
   const lastUpdated = await getLastSuccessfulRefresh();
-  const teams = await getTeams();
   const trackedGamesCount = await getTrackedGamesCount();
   const teamSeasonRows = await getTeamSeasonRows();
   const todaysGames = await getTodaysGames();
-  const supabaseServer = await createClient();
-
-    const {
-        data: { user },
-    } = await supabaseServer.auth.getUser();
-
-    const favoriteTeamIds = await getFavoriteTeamIds(user?.id);
-
-    const favoriteTeamSeasonRows =
-        await getFavoriteTeamSeasonRows(favoriteTeamIds);
- 
 
   return (
     <div>
       <PageHeader
         label="Dashboard"
         title="Your MLB Command Center"
-        description="Track your favorite teams, monitor performance trends, and surface useful baseball intelligence."
+        description="Track public MLB performance, monitor season records, and surface useful baseball intelligence."
       />
 
       <DashboardGrid>
+        <StatCard label="Favorite Teams" value="--" helperText="Coming soon" />
         <StatCard
-            label="Favorite Teams"
-            value={favoriteTeamIds.length}
-            helperText={user ? "Saved to your profile" : "Login to save teams"}
+          label="Tracked Games"
+          value={trackedGamesCount}
+          helperText="Loaded from warehouse"
         />
-        <StatCard label="Tracked Games" value={trackedGamesCount} helperText="Loaded from warehouse" />
         <StatCard label="Model Accuracy" value="--" helperText="Coming soon" />
-        <StatCard label="Last Updated" value={lastUpdated} helperText="Latest successful data refresh" />
+        <StatCard
+          label="Last Updated"
+          value={lastUpdated}
+          helperText="Latest successful data refresh"
+        />
       </DashboardGrid>
 
       <div className="mt-8">
         <SectionCard
-            title="My Teams"
-            description="A personalized snapshot of your selected MLB teams."
-            >
-        <FavoriteTeamsOverview teams={favoriteTeamSeasonRows} />
+          title="Team Season Overview"
+          description="Season-to-date team records and run production from the AX Scout warehouse."
+        >
+          <TeamSeasonTable rows={teamSeasonRows} />
         </SectionCard>
       </div>
 
       <div className="mt-8">
         <SectionCard
-          title="Select Favorite Teams"
-          description="Choose the teams you want AX Scout to personalize your dashboard around."
+          title="Today's Games"
+          description="Current MLB matchups loaded from the AX Scout warehouse."
         >
-          <TeamSelector
-            teams={teams}
-            favoriteTeamIds={favoriteTeamIds}
-            isLoggedIn={Boolean(user)}
-            />
+          <TodaysGamesTable games={todaysGames} />
         </SectionCard>
       </div>
-      
-      <div className="mt-8">
-        <SectionCard
-            title="Team Season Overview"
-            description="Season-to-date team records and run production from the AX Scout warehouse."
-        >
-            <TeamSeasonTable rows={teamSeasonRows} />
-        </SectionCard>
-     </div>
-
-     <div className="mt-8">
-        <SectionCard
-            title="Today’s Games"
-            description="Current MLB matchups loaded from the AX Scout warehouse."
-        >
-            <TodaysGamesTable games={todaysGames} />
-        </SectionCard>
-    </div>
-
-
-
-
     </div>
   );
-
 }

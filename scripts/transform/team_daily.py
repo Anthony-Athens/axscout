@@ -1,8 +1,22 @@
+FINAL_STATUSES = {"final", "game over"}
+
+
+def is_completed_decision(game: dict) -> bool:
+    status = (game.get("status") or "").strip().lower()
+
+    return (
+        game.get("home_score") is not None
+        and game.get("away_score") is not None
+        and status in FINAL_STATUSES
+        and game["home_score"] != game["away_score"]
+    )
+
+
 def build_team_daily_rows(fact_games: list[dict], team_lookup: dict[int, dict]) -> list[dict]:
     rows = []
 
     for game in fact_games:
-        if game["home_score"] is None or game["away_score"] is None:
+        if not is_completed_decision(game):
             continue
 
         home_team = team_lookup.get(game["home_team_key"])
@@ -28,8 +42,6 @@ def build_team_daily_rows(fact_games: list[dict], team_lookup: dict[int, dict]) 
             "runs_allowed": away_score,
             "run_differential": home_score - away_score,
             "mlb_game_pk": game["mlb_game_pk"],
-            "game_date": game["game_date"],
-            "team_key": game["home_team_key"],
         })
 
         rows.append({
@@ -46,8 +58,6 @@ def build_team_daily_rows(fact_games: list[dict], team_lookup: dict[int, dict]) 
             "runs_allowed": home_score,
             "run_differential": away_score - home_score,
             "mlb_game_pk": game["mlb_game_pk"],
-            "game_date": game["game_date"],
-            "team_key": game["away_team_key"],
         })
 
     return rows

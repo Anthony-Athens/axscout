@@ -4,6 +4,28 @@ from scripts.transform.team_season import build_team_season_rows
 from scripts.utils.supabase_client import supabase
 
 
+def replace_team_season_rows(rows: list[dict]) -> None:
+    supabase.table("agg_team_season").delete().neq("team_key", -1).execute()
+
+    if rows:
+        supabase.table("agg_team_season").upsert(
+            rows,
+            on_conflict="season,team_key",
+        ).execute()
+
+
+def warn_on_invalid_decisions(rows: list[dict]) -> None:
+    for row in rows:
+        if row["games_played"] == row["wins"] + row["losses"]:
+            continue
+
+        print(
+            "WARNING: Team season decision mismatch: "
+            f"{row['team_abbreviation']} games_played={row['games_played']} "
+            f"wins={row['wins']} losses={row['losses']}"
+        )
+
+
 def build_and_load_team_season() -> int:
     current_season = date.today().year
 
@@ -39,12 +61,7 @@ def build_and_load_team_season() -> int:
                 "run_differential": 0,
             })
 
-    if not rows:
-        return 0
-
-    supabase.table("agg_team_season").upsert(
-        rows,
-        on_conflict="season,team_key",
-    ).execute()
+    warn_on_invalid_decisions(rows)
+    replace_team_season_rows(rows)
 
     return len(rows)
