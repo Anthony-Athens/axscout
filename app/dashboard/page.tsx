@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase/client";
 import TeamSelector from "@/components/TeamSelector";
 import TeamSeasonTable from "@/components/TeamSeasonTable";
 import TodaysGamesTable from "@/components/TodaysGamesTable";
+import { createClient } from "@/lib/supabase/server";
 
 async function getLastSuccessfulRefresh() {
   const { data, error } = await supabase
@@ -91,12 +92,34 @@ async function getTodaysGames() {
   return data;
 }
 
+async function getFavoriteTeamIds(userId: string | undefined) {
+  if (!userId) return [];
+
+  const supabaseServer = await createClient();
+
+  const { data, error } = await supabaseServer
+    .from("user_favorite_teams")
+    .select("team_id")
+    .eq("user_id", userId);
+
+  if (error || !data) return [];
+
+  return data.map((row) => row.team_id);
+}
+
 export default async function DashboardPage() {
   const lastUpdated = await getLastSuccessfulRefresh();
   const teams = await getTeams();
   const trackedGamesCount = await getTrackedGamesCount();
   const teamSeasonRows = await getTeamSeasonRows();
   const todaysGames = await getTodaysGames();
+  const supabaseServer = await createClient();
+
+    const {
+        data: { user },
+    } = await supabaseServer.auth.getUser();
+
+    const favoriteTeamIds = await getFavoriteTeamIds(user?.id);
  
 
   return (
@@ -108,7 +131,11 @@ export default async function DashboardPage() {
       />
 
       <DashboardGrid>
-        <StatCard label="Favorite Teams" value="0" helperText="No teams selected yet" />
+        <StatCard
+            label="Favorite Teams"
+            value={favoriteTeamIds.length}
+            helperText={user ? "Saved to your profile" : "Login to save teams"}
+        />
         <StatCard label="Tracked Games" value={trackedGamesCount} helperText="Loaded from warehouse" />
         <StatCard label="Model Accuracy" value="--" helperText="Coming soon" />
         <StatCard label="Last Updated" value={lastUpdated} helperText="Latest successful data refresh" />
@@ -119,7 +146,11 @@ export default async function DashboardPage() {
           title="Select Favorite Teams"
           description="Choose the teams you want AX Scout to personalize your dashboard around."
         >
-          <TeamSelector teams={teams} />
+          <TeamSelector
+            teams={teams}
+            favoriteTeamIds={favoriteTeamIds}
+            isLoggedIn={Boolean(user)}
+            />
         </SectionCard>
       </div>
       
