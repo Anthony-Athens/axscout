@@ -28,8 +28,17 @@ def sync_fact_games() -> int:
 
     team_lookup = {
         team["abbreviation"]: team["team_key"]
-        for team in teams
+     for team in teams
     }
+
+    # MLB Stats API sometimes uses different abbreviations
+    TEAM_ABBREVIATION_ALIASES = {
+        "AZ": "ARI",
+    }
+
+    for source_abbr, canonical_abbr in TEAM_ABBREVIATION_ALIASES.items():
+        if canonical_abbr in team_lookup:
+            team_lookup[source_abbr] = team_lookup[canonical_abbr]
 
     fact_games = []
 
