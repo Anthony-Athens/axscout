@@ -4,6 +4,7 @@ import EmptyState from "@/components/ui/EmptyState";
 import SectionCard from "@/components/ui/SectionCard";
 import StatCard from "@/components/ui/StatCard";
 import { supabase } from "@/lib/supabase/client";
+import TeamSelector from "@/components/TeamSelector";
 
 async function getLastSuccessfulRefresh() {
   const { data, error } = await supabase
@@ -24,8 +25,22 @@ async function getLastSuccessfulRefresh() {
   });
 }
 
+async function getTeams() {
+  const { data, error } = await supabase
+    .from("teams")
+    .select("id, abbreviation, name, league, division")
+    .order("name", { ascending: true });
+
+  if (error || !data) {
+    return [];
+  }
+
+  return data;
+}
+
 export default async function DashboardPage() {
   const lastUpdated = await getLastSuccessfulRefresh();
+  const teams = await getTeams();
 
   return (
     <div>
@@ -44,15 +59,13 @@ export default async function DashboardPage() {
 
       <div className="mt-8">
         <SectionCard
-          title="Favorite Team Insights"
-          description="Once team selection is enabled, your personalized analytics will appear here."
+          title="Select Favorite Teams"
+          description="Choose the teams you want AX Scout to personalize your dashboard around."
         >
-          <EmptyState
-            title="No favorite teams selected"
-            description="You will eventually choose your favorite MLB teams during onboarding or from your profile."
-          />
+          <TeamSelector teams={teams} />
         </SectionCard>
       </div>
     </div>
   );
+
 }
