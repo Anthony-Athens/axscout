@@ -1,3 +1,5 @@
+import "server-only";
+
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
@@ -18,7 +20,7 @@ export async function createClient() {
               cookieStore.set(name, value, options)
             );
           } catch {
-            // Server Components cannot always set cookies.
+            // Proxy refreshes cookies when this runs in a Server Component.
           }
         },
       },
