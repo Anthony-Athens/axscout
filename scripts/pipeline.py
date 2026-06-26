@@ -1,3 +1,4 @@
+from scripts.pipelines.build_warehouse_pipeline import main as build_warehouse_pipeline
 from scripts.pipelines.load_games_pipeline import main as load_games_pipeline
 
 
@@ -17,6 +18,7 @@ def main() -> None:
     print("Starting AX Scout daily data refresh")
 
     run_pipeline("Load Games", load_games_pipeline)
+    run_pipeline("Build Warehouse", build_warehouse_pipeline)
 
     print("AX Scout daily data refresh complete")
 
