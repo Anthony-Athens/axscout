@@ -1,5 +1,7 @@
 from scripts.pipelines.build_warehouse_pipeline import main as build_warehouse_pipeline
 from scripts.pipelines.load_games_pipeline import main as load_games_pipeline
+from scripts.pipelines.build_team_daily_pipeline import main as build_team_daily_pipeline
+from scripts.pipelines.build_team_season_pipeline import main as build_team_season_pipeline
 
 
 def run_pipeline(name: str, pipeline_func) -> None:
@@ -19,6 +21,8 @@ def main() -> None:
 
     run_pipeline("Load Games", load_games_pipeline)
     run_pipeline("Build Warehouse", build_warehouse_pipeline)
+    run_pipeline("Build Team Daily Aggregates", build_team_daily_pipeline)
+    run_pipeline("Build Team Season Aggregates", build_team_season_pipeline)
 
     print("AX Scout daily data refresh complete")
 

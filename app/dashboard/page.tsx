@@ -5,6 +5,7 @@ import SectionCard from "@/components/ui/SectionCard";
 import StatCard from "@/components/ui/StatCard";
 import { supabase } from "@/lib/supabase/client";
 import TeamSelector from "@/components/TeamSelector";
+import TeamSeasonTable from "@/components/TeamSeasonTable";
 
 async function getLastSuccessfulRefresh() {
   const { data, error } = await supabase
@@ -50,10 +51,26 @@ async function getTeams() {
   return data;
 }
 
+async function getTeamSeasonRows() {
+  const { data, error } = await supabase
+    .from("agg_team_season")
+    .select(
+      "team_abbreviation, games_played, wins, losses, winning_percentage, runs_scored, runs_allowed, run_differential"
+    )
+    .order("winning_percentage", { ascending: false });
+
+  if (error || !data) {
+    return [];
+  }
+
+  return data;
+}
+
 export default async function DashboardPage() {
   const lastUpdated = await getLastSuccessfulRefresh();
   const teams = await getTeams();
   const trackedGamesCount = await getTrackedGamesCount();
+  const teamSeasonRows = await getTeamSeasonRows();
 
   return (
     <div>
@@ -78,6 +95,16 @@ export default async function DashboardPage() {
           <TeamSelector teams={teams} />
         </SectionCard>
       </div>
+      
+      <div className="mt-8">
+        <SectionCard
+            title="Team Season Overview"
+            description="Season-to-date team records and run production from the AX Scout warehouse."
+        >
+            <TeamSeasonTable rows={teamSeasonRows} />
+        </SectionCard>
+     </div>
+
     </div>
   );
 
