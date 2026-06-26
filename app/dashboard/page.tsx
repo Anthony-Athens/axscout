@@ -3,8 +3,30 @@ import DashboardGrid from "@/components/ui/DashboardGrid";
 import EmptyState from "@/components/ui/EmptyState";
 import SectionCard from "@/components/ui/SectionCard";
 import StatCard from "@/components/ui/StatCard";
+import { supabase } from "@/lib/supabase/client";
 
-export default function DashboardPage() {
+async function getLastSuccessfulRefresh() {
+  const { data, error } = await supabase
+    .from("data_refresh_runs")
+    .select("finished_at")
+    .eq("status", "success")
+    .order("finished_at", { ascending: false })
+    .limit(1)
+    .single();
+
+  if (error || !data?.finished_at) {
+    return "Awaiting data refresh";
+  }
+
+  return new Date(data.finished_at).toLocaleString("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
+
+export default async function DashboardPage() {
+  const lastUpdated = await getLastSuccessfulRefresh();
+
   return (
     <div>
       <PageHeader
@@ -17,7 +39,7 @@ export default function DashboardPage() {
         <StatCard label="Favorite Teams" value="0" helperText="No teams selected yet" />
         <StatCard label="Tracked Games" value="0" helperText="Coming soon" />
         <StatCard label="Model Accuracy" value="--" helperText="Coming soon" />
-        <StatCard label="Last Updated" value="--" helperText="Awaiting data refresh" />
+        <StatCard label="Last Updated" value={lastUpdated} helperText="Latest successful data refresh" />
       </DashboardGrid>
 
       <div className="mt-8">
