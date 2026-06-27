@@ -1,0 +1,268 @@
+import pandas as pd
+
+TEAM_ABBREVIATION_ALIASES = {
+    "AZ": "ARI",
+    "OAK": "ATH",
+    "WSN": "WSH",
+}
+
+GROUP_COLUMNS = [
+    "season",
+    "week_start_date",
+    "week_end_date",
+    "team_abbreviation",
+]
+
+
+def _first_available_column(data: pd.DataFrame, candidates: tuple[str, ...]):
+    for column in candidates:
+        if column in data.columns:
+            return data[column].astype("string")
+
+    return None
+
+
+def _infer_team_sides(data: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
+    batting_team = _first_available_column(
+        data,
+        ("batting_team", "batter_team", "bat_team"),
+    )
+    pitching_team = _first_available_column(
+        data,
+        ("pitching_team", "pitcher_team", "fld_team"),
+    )
+
+    if batting_team is not None and pitching_team is not None:
+        return batting_team, pitching_team
+
+    required_columns = {"home_team", "away_team", "inning_topbot"}
+    missing_columns = required_columns.difference(data.columns)
+
+    if missing_columns:
+        missing = ", ".join(sorted(missing_columns))
+        raise ValueError(f"Statcast data is missing team-side columns: {missing}")
+
+    top_of_inning = (
+        data["inning_topbot"].astype("string").str.strip().str.lower().eq("top")
+    )
+    known_half = (
+        data["inning_topbot"]
+        .astype("string")
+        .str.strip()
+        .str.lower()
+        .isin({"top", "bot", "bottom"})
+    )
+    inferred_batting = data["home_team"].where(~top_of_inning, data["away_team"])
+    inferred_pitching = data["away_team"].where(~top_of_inning, data["home_team"])
+    inferred_batting = inferred_batting.where(known_half)
+    inferred_pitching = inferred_pitching.where(known_half)
+
+    return (
+        batting_team if batting_team is not None else inferred_batting,
+        pitching_team if pitching_team is not None else inferred_pitching,
+    )
+
+
+def _prepare_data(statcast_data: pd.DataFrame) -> pd.DataFrame:
+    if statcast_data is None or statcast_data.empty:
+        return pd.DataFrame()
+
+    if "game_date" not in statcast_data.columns:
+        raise ValueError("Statcast data is missing game_date.")
+
+    data = statcast_data.copy()
+    game_dates = pd.to_datetime(data["game_date"], errors="coerce")
+    batting_team, pitching_team = _infer_team_sides(data)
+    calendar_weeks = game_dates.dt.to_period("W-SUN")
+
+    data["season"] = game_dates.dt.year.astype("Int64")
+    data["week_start_date"] = calendar_weeks.dt.start_time.dt.strftime("%Y-%m-%d")
+    data["week_end_date"] = calendar_weeks.dt.end_time.dt.strftime("%Y-%m-%d")
+    data["batting_team"] = batting_team
+    data["pitching_team"] = pitching_team
+
+    for column in ("batting_team", "pitching_team"):
+        data[column] = (
+            data[column]
+            .astype("string")
+            .str.strip()
+            .str.upper()
+            .replace(TEAM_ABBREVIATION_ALIASES)
+        )
+
+    return data.dropna(
+        subset=["season", "week_start_date", "week_end_date"]
+    )
+
+
+def _base_team_weeks(data: pd.DataFrame, team_column: str) -> pd.DataFrame:
+    base = data[
+        ["season", "week_start_date", "week_end_date", team_column]
+    ].dropna()
+    base = base.rename(columns={team_column: "team_abbreviation"})
+    return base.drop_duplicates().reset_index(drop=True)
+
+
+def _numeric_column(data: pd.DataFrame, column: str) -> pd.Series:
+    if column not in data.columns:
+        return pd.Series(float("nan"), index=data.index, dtype="float64")
+
+    return pd.to_numeric(data[column], errors="coerce")
+
+
+def _to_records(data: pd.DataFrame) -> list[dict]:
+    records = []
+
+    for row in data.to_dict(orient="records"):
+        records.append(
+            {
+                key: None if pd.isna(value) else value
+                for key, value in row.items()
+            }
+        )
+
+    return records
+
+
+def build_team_offense_weekly_rows(data: pd.DataFrame) -> list[dict]:
+    if data.empty:
+        return []
+
+    base = _base_team_weeks(data, "batting_team")
+
+    if base.empty:
+        return []
+
+    offense = data.dropna(subset=["batting_team"]).copy()
+    offense = offense.rename(columns={"batting_team": "team_abbreviation"})
+    events = offense.get(
+        "events",
+        pd.Series(pd.NA, index=offense.index, dtype="string"),
+    ).astype("string")
+    offense["home_run"] = (
+        events.eq("home_run").fillna(False).astype("int64")
+    )
+    offense["launch_speed_value"] = _numeric_column(offense, "launch_speed")
+
+    grouped = (
+        offense.groupby(GROUP_COLUMNS, as_index=False, dropna=False)
+        .agg(
+            home_runs=("home_run", "sum"),
+            avg_exit_velocity=("launch_speed_value", "mean"),
+        )
+    )
+
+    if {"bat_score", "post_bat_score"}.issubset(offense.columns):
+        before_score = pd.to_numeric(offense["bat_score"], errors="coerce")
+        after_score = pd.to_numeric(offense["post_bat_score"], errors="coerce")
+        offense["runs_on_play"] = (after_score - before_score).clip(lower=0)
+        runs = (
+            offense.groupby(GROUP_COLUMNS, as_index=False, dropna=False)
+            .agg(
+                runs=(
+                    "runs_on_play",
+                    lambda values: values.sum(min_count=1),
+                )
+            )
+        )
+        grouped = grouped.merge(runs, on=GROUP_COLUMNS, how="left")
+    else:
+        grouped["runs"] = None
+
+    rows = base.merge(grouped, on=GROUP_COLUMNS, how="left")
+    rows["season"] = rows["season"].astype("int64")
+    rows["home_runs"] = rows["home_runs"].fillna(0).astype("int64")
+    rows["runs"] = (
+        pd.to_numeric(rows["runs"], errors="coerce").round().astype("Int64")
+    )
+    rows["avg_exit_velocity"] = rows["avg_exit_velocity"].round(2)
+    rows["batting_average"] = None
+    rows["ops"] = None
+
+    return _to_records(
+        rows[
+            GROUP_COLUMNS
+            + [
+                "batting_average",
+                "ops",
+                "home_runs",
+                "runs",
+                "avg_exit_velocity",
+            ]
+        ]
+    )
+
+
+def build_team_pitching_weekly_rows(data: pd.DataFrame) -> list[dict]:
+    if data.empty:
+        return []
+
+    base = _base_team_weeks(data, "pitching_team")
+
+    if base.empty:
+        return []
+
+    pitching = data.dropna(subset=["pitching_team"]).copy()
+    pitching = pitching.rename(columns={"pitching_team": "team_abbreviation"})
+    events = pitching.get(
+        "events",
+        pd.Series(pd.NA, index=pitching.index, dtype="string"),
+    ).astype("string")
+    pitching["strikeout"] = (
+        events.eq("strikeout").fillna(False).astype("int64")
+    )
+    pitching["pitch_speed_value"] = _numeric_column(
+        pitching,
+        "release_speed",
+    )
+    pitching["spin_rate_value"] = _numeric_column(
+        pitching,
+        "release_spin_rate",
+    )
+
+    rows = (
+        pitching.groupby(GROUP_COLUMNS, as_index=False, dropna=False)
+        .agg(
+            strikeouts=("strikeout", "sum"),
+            avg_pitch_speed=("pitch_speed_value", "mean"),
+            avg_spin_rate=("spin_rate_value", "mean"),
+        )
+    )
+    rows = base.merge(rows, on=GROUP_COLUMNS, how="left")
+    rows["season"] = rows["season"].astype("int64")
+    rows["strikeouts"] = rows["strikeouts"].fillna(0).astype("int64")
+    rows["avg_pitch_speed"] = rows["avg_pitch_speed"].round(2)
+    rows["avg_spin_rate"] = rows["avg_spin_rate"].round(2)
+    rows["era"] = None
+    rows["whip"] = None
+
+    return _to_records(
+        rows[
+            GROUP_COLUMNS
+            + [
+                "era",
+                "whip",
+                "strikeouts",
+                "avg_pitch_speed",
+                "avg_spin_rate",
+            ]
+        ]
+    )
+
+
+def build_team_weekly_statcast_rows(
+    statcast_data: pd.DataFrame,
+) -> tuple[list[dict], list[dict]]:
+    data = _prepare_data(statcast_data)
+
+    if data.empty:
+        print("No Statcast rows available for weekly aggregation.")
+        return [], []
+
+    offense_rows = build_team_offense_weekly_rows(data)
+    pitching_rows = build_team_pitching_weekly_rows(data)
+
+    print(f"Built {len(offense_rows)} team offense weekly rows.")
+    print(f"Built {len(pitching_rows)} team pitching weekly rows.")
+
+    return offense_rows, pitching_rows
