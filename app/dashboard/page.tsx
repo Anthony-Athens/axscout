@@ -166,7 +166,7 @@ export default async function DashboardPage() {
         <StatCard
           label="Favorite Teams"
           value={user ? favoriteCount : "--"}
-          helperText={user ? "Saved to your account" : "Log in to personalize"}
+          helperText={user ? "Saved to your account" : "Log in to save teams"}
         />
         <StatCard
           label="Tracked Games"
@@ -194,7 +194,7 @@ export default async function DashboardPage() {
 
           <div className="mt-8">
             <SectionCard
-              title="Favorite Teams"
+              title="Select Favorite Teams"
               description="Select the teams you want to follow on your dashboard."
             >
               <TeamSelector
