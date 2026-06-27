@@ -13,6 +13,32 @@ GROUP_COLUMNS = [
     "team_abbreviation",
 ]
 
+HIT_BASES = {
+    "single": 1,
+    "double": 2,
+    "triple": 3,
+    "home_run": 4,
+}
+
+# Events that safely represent an official at-bat in Statcast's terminal
+# plate-appearance event field. Walks, HBP, sacrifices, and interference are
+# intentionally excluded.
+OFFICIAL_AT_BAT_EVENTS = set(HIT_BASES) | {
+    "field_error",
+    "field_out",
+    "fielders_choice",
+    "fielders_choice_out",
+    "force_out",
+    "grounded_into_double_play",
+    "strikeout",
+    "strikeout_double_play",
+    "double_play",
+    "triple_play",
+    "other_out",
+}
+
+WALK_EVENTS = {"walk", "intent_walk", "intentional_walk"}
+
 
 def _first_available_column(data: pd.DataFrame, candidates: tuple[str, ...]):
     for column in candidates:
@@ -138,7 +164,19 @@ def build_team_offense_weekly_rows(data: pd.DataFrame) -> list[dict]:
     events = offense.get(
         "events",
         pd.Series(pd.NA, index=offense.index, dtype="string"),
-    ).astype("string")
+    ).astype("string").str.strip().str.lower()
+    offense["hit"] = events.isin(HIT_BASES).astype("int64")
+    offense["total_bases"] = (
+        events.map(HIT_BASES).fillna(0).astype("int64")
+    )
+    offense["at_bat"] = events.isin(OFFICIAL_AT_BAT_EVENTS).astype("int64")
+    offense["walk"] = events.isin(WALK_EVENTS).astype("int64")
+    offense["hit_by_pitch"] = events.eq("hit_by_pitch").fillna(False).astype(
+        "int64"
+    )
+    offense["sacrifice_fly"] = events.eq("sac_fly").fillna(False).astype(
+        "int64"
+    )
     offense["home_run"] = (
         events.eq("home_run").fillna(False).astype("int64")
     )
@@ -147,6 +185,12 @@ def build_team_offense_weekly_rows(data: pd.DataFrame) -> list[dict]:
     grouped = (
         offense.groupby(GROUP_COLUMNS, as_index=False, dropna=False)
         .agg(
+            hits=("hit", "sum"),
+            total_bases=("total_bases", "sum"),
+            at_bats=("at_bat", "sum"),
+            walks=("walk", "sum"),
+            hit_by_pitch=("hit_by_pitch", "sum"),
+            sacrifice_flies=("sacrifice_fly", "sum"),
             home_runs=("home_run", "sum"),
             avg_exit_velocity=("launch_speed_value", "mean"),
         )
@@ -176,8 +220,23 @@ def build_team_offense_weekly_rows(data: pd.DataFrame) -> list[dict]:
         pd.to_numeric(rows["runs"], errors="coerce").round().astype("Int64")
     )
     rows["avg_exit_velocity"] = rows["avg_exit_velocity"].round(2)
-    rows["batting_average"] = None
-    rows["ops"] = None
+
+    at_bats = rows["at_bats"].astype("float64")
+    obp_denominator = (
+        at_bats
+        + rows["walks"]
+        + rows["hit_by_pitch"]
+        + rows["sacrifice_flies"]
+    )
+    batting_average = (rows["hits"] / at_bats).where(at_bats > 0)
+    on_base_percentage = (
+        (rows["hits"] + rows["walks"] + rows["hit_by_pitch"])
+        / obp_denominator
+    ).where(obp_denominator > 0)
+    slugging_percentage = (rows["total_bases"] / at_bats).where(at_bats > 0)
+
+    rows["batting_average"] = batting_average.round(3)
+    rows["ops"] = (on_base_percentage + slugging_percentage).round(3)
 
     return _to_records(
         rows[
