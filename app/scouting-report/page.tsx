@@ -14,9 +14,12 @@ import { createClient } from "@/lib/supabase/server";
 
 const DEFAULT_TEAM_A = "PIT";
 const DEFAULT_TEAM_B = "CHC";
+const MIN_WEEKLY_PLATE_APPEARANCES = 10;
+const MIN_WEEKLY_BATTERS_FACED = 10;
 
 type SeasonMetrics = {
   season: number;
+  games_played: number;
   wins: number;
   losses: number;
   winning_percentage: number | null;
@@ -52,6 +55,7 @@ type WeeklyPitching = {
 type OffensePlayerRow = {
   season: number;
   mlb_player_id: number;
+  plate_appearances: number | null;
   ops: number | null;
   home_runs: number | null;
   avg_exit_velocity: number | null;
@@ -60,7 +64,29 @@ type OffensePlayerRow = {
 type PitchingPlayerRow = {
   season: number;
   mlb_player_id: number;
+  batters_faced: number | null;
   strikeouts: number | null;
+  avg_pitch_speed: number | null;
+  avg_spin_rate: number | null;
+};
+
+type WeeklyOffensePlayerRow = {
+  week_start_date: string;
+  mlb_player_id: number;
+  plate_appearances: number | null;
+  batting_average: number | null;
+  ops: number | null;
+  home_runs: number | null;
+  avg_exit_velocity: number | null;
+};
+
+type WeeklyPitchingPlayerRow = {
+  week_start_date: string;
+  mlb_player_id: number;
+  batters_faced: number | null;
+  strikeouts: number | null;
+  hits_allowed: number | null;
+  home_runs_allowed: number | null;
   avg_pitch_speed: number | null;
   avg_spin_rate: number | null;
 };
@@ -82,7 +108,36 @@ function latestSeasonRows<T extends { season: number }>(rows: T[]): T[] {
   const latestSeason = rows[0]?.season;
   return latestSeason === undefined
     ? []
-    : rows.filter((row) => row.season === latestSeason).slice(0, 3);
+    : rows.filter((row) => row.season === latestSeason);
+}
+
+function latestWeekRows<T extends { week_start_date: string }>(rows: T[]): T[] {
+  const latestWeek = rows[0]?.week_start_date;
+  return latestWeek === undefined
+    ? []
+    : rows.filter((row) => row.week_start_date === latestWeek);
+}
+
+function qualificationMinimum(
+  gamesPlayed: number | null | undefined,
+  multiplier: number
+) {
+  return gamesPlayed && gamesPlayed > 0
+    ? Math.ceil(gamesPlayed * multiplier)
+    : Number.POSITIVE_INFINITY;
+}
+
+function formatWeek(value: string | undefined) {
+  if (!value) {
+    return "Latest available week";
+  }
+
+  const date = new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${value}T00:00:00Z`));
+  return `Week of ${date}`;
 }
 
 export default async function ScoutingReportPage({
@@ -145,11 +200,15 @@ export default async function ScoutingReportPage({
     offensePlayersBResult,
     pitchingPlayersAResult,
     pitchingPlayersBResult,
+    weeklyOffensePlayersAResult,
+    weeklyOffensePlayersBResult,
+    weeklyPitchingPlayersAResult,
+    weeklyPitchingPlayersBResult,
   ] = await Promise.all([
     supabase
       .from("agg_team_season")
       .select(
-        "season, wins, losses, winning_percentage, runs_scored, runs_allowed, run_differential"
+        "season, games_played, wins, losses, winning_percentage, runs_scored, runs_allowed, run_differential"
       )
       .eq("team_abbreviation", abbreviationA)
       .order("season", { ascending: false })
@@ -158,7 +217,7 @@ export default async function ScoutingReportPage({
     supabase
       .from("agg_team_season")
       .select(
-        "season, wins, losses, winning_percentage, runs_scored, runs_allowed, run_differential"
+        "season, games_played, wins, losses, winning_percentage, runs_scored, runs_allowed, run_differential"
       )
       .eq("team_abbreviation", abbreviationB)
       .order("season", { ascending: false })
@@ -212,7 +271,9 @@ export default async function ScoutingReportPage({
       .maybeSingle(),
     supabase
       .from("agg_player_offense_season")
-      .select("season, mlb_player_id, ops, home_runs, avg_exit_velocity")
+      .select(
+        "season, mlb_player_id, plate_appearances, ops, home_runs, avg_exit_velocity"
+      )
       .eq("team_abbreviation", abbreviationA)
       .not("mlb_player_id", "is", null)
       .order("season", { ascending: false })
@@ -220,7 +281,9 @@ export default async function ScoutingReportPage({
       .limit(50),
     supabase
       .from("agg_player_offense_season")
-      .select("season, mlb_player_id, ops, home_runs, avg_exit_velocity")
+      .select(
+        "season, mlb_player_id, plate_appearances, ops, home_runs, avg_exit_velocity"
+      )
       .eq("team_abbreviation", abbreviationB)
       .not("mlb_player_id", "is", null)
       .order("season", { ascending: false })
@@ -229,7 +292,7 @@ export default async function ScoutingReportPage({
     supabase
       .from("agg_player_pitching_season")
       .select(
-        "season, mlb_player_id, strikeouts, avg_pitch_speed, avg_spin_rate"
+        "season, mlb_player_id, batters_faced, strikeouts, avg_pitch_speed, avg_spin_rate"
       )
       .eq("team_abbreviation", abbreviationA)
       .not("mlb_player_id", "is", null)
@@ -239,13 +302,49 @@ export default async function ScoutingReportPage({
     supabase
       .from("agg_player_pitching_season")
       .select(
-        "season, mlb_player_id, strikeouts, avg_pitch_speed, avg_spin_rate"
+        "season, mlb_player_id, batters_faced, strikeouts, avg_pitch_speed, avg_spin_rate"
       )
       .eq("team_abbreviation", abbreviationB)
       .not("mlb_player_id", "is", null)
       .order("season", { ascending: false })
       .order("strikeouts", { ascending: false, nullsFirst: false })
       .limit(50),
+    supabase
+      .from("agg_player_offense_weekly")
+      .select(
+        "week_start_date, mlb_player_id, plate_appearances, batting_average, ops, home_runs, avg_exit_velocity"
+      )
+      .eq("team_abbreviation", abbreviationA)
+      .not("mlb_player_id", "is", null)
+      .order("week_start_date", { ascending: false })
+      .limit(200),
+    supabase
+      .from("agg_player_offense_weekly")
+      .select(
+        "week_start_date, mlb_player_id, plate_appearances, batting_average, ops, home_runs, avg_exit_velocity"
+      )
+      .eq("team_abbreviation", abbreviationB)
+      .not("mlb_player_id", "is", null)
+      .order("week_start_date", { ascending: false })
+      .limit(200),
+    supabase
+      .from("agg_player_pitching_weekly")
+      .select(
+        "week_start_date, mlb_player_id, batters_faced, strikeouts, hits_allowed, home_runs_allowed, avg_pitch_speed, avg_spin_rate"
+      )
+      .eq("team_abbreviation", abbreviationA)
+      .not("mlb_player_id", "is", null)
+      .order("week_start_date", { ascending: false })
+      .limit(200),
+    supabase
+      .from("agg_player_pitching_weekly")
+      .select(
+        "week_start_date, mlb_player_id, batters_faced, strikeouts, hits_allowed, home_runs_allowed, avg_pitch_speed, avg_spin_rate"
+      )
+      .eq("team_abbreviation", abbreviationB)
+      .not("mlb_player_id", "is", null)
+      .order("week_start_date", { ascending: false })
+      .limit(200),
   ]);
 
   const seasonA = seasonAResult.data as SeasonMetrics | null;
@@ -256,23 +355,145 @@ export default async function ScoutingReportPage({
   const offenseB = offenseBResult.data as WeeklyOffense | null;
   const pitchingA = pitchingAResult.data as WeeklyPitching | null;
   const pitchingB = pitchingBResult.data as WeeklyPitching | null;
+  const minimumSeasonPlateAppearancesA = qualificationMinimum(
+    seasonA?.games_played,
+    2.5
+  );
+  const minimumSeasonPlateAppearancesB = qualificationMinimum(
+    seasonB?.games_played,
+    2.5
+  );
+  const minimumSeasonBattersFacedA = qualificationMinimum(
+    seasonA?.games_played,
+    3
+  );
+  const minimumSeasonBattersFacedB = qualificationMinimum(
+    seasonB?.games_played,
+    3
+  );
   const offensePlayersA = latestSeasonRows(
     (offensePlayersAResult.data ?? []) as OffensePlayerRow[]
-  );
+  )
+    .filter(
+      (player) =>
+        player.ops !== null &&
+        (player.plate_appearances ?? 0) >= minimumSeasonPlateAppearancesA
+    )
+    .sort((playerA, playerB) => (playerB.ops ?? 0) - (playerA.ops ?? 0))
+    .slice(0, 3);
   const offensePlayersB = latestSeasonRows(
     (offensePlayersBResult.data ?? []) as OffensePlayerRow[]
-  );
+  )
+    .filter(
+      (player) =>
+        player.ops !== null &&
+        (player.plate_appearances ?? 0) >= minimumSeasonPlateAppearancesB
+    )
+    .sort((playerA, playerB) => (playerB.ops ?? 0) - (playerA.ops ?? 0))
+    .slice(0, 3);
   const pitchingPlayersA = latestSeasonRows(
     (pitchingPlayersAResult.data ?? []) as PitchingPlayerRow[]
-  );
+  )
+    .filter(
+      (player) =>
+        (player.batters_faced ?? 0) >= minimumSeasonBattersFacedA
+    )
+    .sort(
+      (playerA, playerB) =>
+        (playerB.strikeouts ?? 0) - (playerA.strikeouts ?? 0)
+    )
+    .slice(0, 3);
   const pitchingPlayersB = latestSeasonRows(
     (pitchingPlayersBResult.data ?? []) as PitchingPlayerRow[]
+  )
+    .filter(
+      (player) =>
+        (player.batters_faced ?? 0) >= minimumSeasonBattersFacedB
+    )
+    .sort(
+      (playerA, playerB) =>
+        (playerB.strikeouts ?? 0) - (playerA.strikeouts ?? 0)
+    )
+    .slice(0, 3);
+  const latestOffenseWeekA = latestWeekRows(
+    (weeklyOffensePlayersAResult.data ?? []) as WeeklyOffensePlayerRow[]
   );
+  const latestOffenseWeekB = latestWeekRows(
+    (weeklyOffensePlayersBResult.data ?? []) as WeeklyOffensePlayerRow[]
+  );
+  const qualifiedWeeklyOffenseA = latestOffenseWeekA.filter(
+    (player) =>
+      player.ops !== null &&
+      (player.plate_appearances ?? 0) >= MIN_WEEKLY_PLATE_APPEARANCES
+  );
+  const qualifiedWeeklyOffenseB = latestOffenseWeekB.filter(
+    (player) =>
+      player.ops !== null &&
+      (player.plate_appearances ?? 0) >= MIN_WEEKLY_PLATE_APPEARANCES
+  );
+  const hotOffenseA = [...qualifiedWeeklyOffenseA]
+    .sort((playerA, playerB) => (playerB.ops ?? 0) - (playerA.ops ?? 0))
+    .slice(0, 3);
+  const hotOffenseB = [...qualifiedWeeklyOffenseB]
+    .sort((playerA, playerB) => (playerB.ops ?? 0) - (playerA.ops ?? 0))
+    .slice(0, 3);
+  const coldOffenseA = [...qualifiedWeeklyOffenseA]
+    .sort((playerA, playerB) => (playerA.ops ?? 0) - (playerB.ops ?? 0))
+    .slice(0, 3);
+  const coldOffenseB = [...qualifiedWeeklyOffenseB]
+    .sort((playerA, playerB) => (playerA.ops ?? 0) - (playerB.ops ?? 0))
+    .slice(0, 3);
+  const latestPitchingWeekA = latestWeekRows(
+    (weeklyPitchingPlayersAResult.data ?? []) as WeeklyPitchingPlayerRow[]
+  );
+  const latestPitchingWeekB = latestWeekRows(
+    (weeklyPitchingPlayersBResult.data ?? []) as WeeklyPitchingPlayerRow[]
+  );
+  const qualifiedWeeklyPitchingA = latestPitchingWeekA.filter(
+    (player) =>
+      (player.batters_faced ?? 0) >= MIN_WEEKLY_BATTERS_FACED
+  );
+  const qualifiedWeeklyPitchingB = latestPitchingWeekB.filter(
+    (player) =>
+      (player.batters_faced ?? 0) >= MIN_WEEKLY_BATTERS_FACED
+  );
+  const hotPitchingA = [...qualifiedWeeklyPitchingA]
+    .sort(
+      (playerA, playerB) =>
+        (playerB.strikeouts ?? 0) - (playerA.strikeouts ?? 0)
+    )
+    .slice(0, 3);
+  const hotPitchingB = [...qualifiedWeeklyPitchingB]
+    .sort(
+      (playerA, playerB) =>
+        (playerB.strikeouts ?? 0) - (playerA.strikeouts ?? 0)
+    )
+    .slice(0, 3);
+  const coldPitchingSort = (
+    playerA: WeeklyPitchingPlayerRow,
+    playerB: WeeklyPitchingPlayerRow
+  ) =>
+    (playerB.home_runs_allowed ?? 0) - (playerA.home_runs_allowed ?? 0) ||
+    (playerB.hits_allowed ?? 0) - (playerA.hits_allowed ?? 0);
+  const coldPitchingA = [...qualifiedWeeklyPitchingA]
+    .sort(coldPitchingSort)
+    .slice(0, 3);
+  const coldPitchingB = [...qualifiedWeeklyPitchingB]
+    .sort(coldPitchingSort)
+    .slice(0, 3);
   const playerIds = [
     ...offensePlayersA,
     ...offensePlayersB,
     ...pitchingPlayersA,
     ...pitchingPlayersB,
+    ...hotOffenseA,
+    ...hotOffenseB,
+    ...coldOffenseA,
+    ...coldOffenseB,
+    ...hotPitchingA,
+    ...hotPitchingB,
+    ...coldPitchingA,
+    ...coldPitchingB,
   ].map((player) => player.mlb_player_id);
   const uniquePlayerIds = [...new Set(playerIds)];
   const { data: playerDimensions } = uniquePlayerIds.length
@@ -287,11 +508,12 @@ export default async function ScoutingReportPage({
       player.full_name,
     ])
   );
+  const playerName = (playerId: number) =>
+    playerNames.get(playerId) ?? `Player ${playerId}`;
   const offenseLeaders = (rows: OffensePlayerRow[]): LeaderboardPlayer[] =>
     rows.map((player) => ({
       mlb_player_id: player.mlb_player_id,
-      full_name:
-        playerNames.get(player.mlb_player_id) ?? `Player ${player.mlb_player_id}`,
+      full_name: playerName(player.mlb_player_id),
       metrics: [
         { label: "OPS", value: formatDecimal(player.ops, 3) },
         { label: "HR", value: player.home_runs ?? "--" },
@@ -307,10 +529,54 @@ export default async function ScoutingReportPage({
   const pitchingLeaders = (rows: PitchingPlayerRow[]): LeaderboardPlayer[] =>
     rows.map((player) => ({
       mlb_player_id: player.mlb_player_id,
-      full_name:
-        playerNames.get(player.mlb_player_id) ?? `Player ${player.mlb_player_id}`,
+      full_name: playerName(player.mlb_player_id),
       metrics: [
         { label: "K", value: player.strikeouts ?? "--" },
+        {
+          label: "Avg Velo",
+          value:
+            player.avg_pitch_speed === null
+              ? "--"
+              : `${formatDecimal(player.avg_pitch_speed)} mph`,
+        },
+        {
+          label: "Avg Spin",
+          value:
+            player.avg_spin_rate === null
+              ? "--"
+              : `${formatDecimal(player.avg_spin_rate, 0)} rpm`,
+        },
+      ],
+    }));
+  const weeklyOffenseLeaders = (
+    rows: WeeklyOffensePlayerRow[]
+  ): LeaderboardPlayer[] =>
+    rows.map((player) => ({
+      mlb_player_id: player.mlb_player_id,
+      full_name: playerName(player.mlb_player_id),
+      metrics: [
+        { label: "OPS", value: formatDecimal(player.ops, 3) },
+        { label: "AVG", value: formatDecimal(player.batting_average, 3) },
+        { label: "HR", value: player.home_runs ?? "--" },
+        {
+          label: "Avg EV",
+          value:
+            player.avg_exit_velocity === null
+              ? "--"
+              : `${formatDecimal(player.avg_exit_velocity)} mph`,
+        },
+      ],
+    }));
+  const weeklyPitchingLeaders = (
+    rows: WeeklyPitchingPlayerRow[]
+  ): LeaderboardPlayer[] =>
+    rows.map((player) => ({
+      mlb_player_id: player.mlb_player_id,
+      full_name: playerName(player.mlb_player_id),
+      metrics: [
+        { label: "K", value: player.strikeouts ?? "--" },
+        { label: "H", value: player.hits_allowed ?? "--" },
+        { label: "HR", value: player.home_runs_allowed ?? "--" },
         {
           label: "Avg Velo",
           value:
@@ -577,7 +843,7 @@ export default async function ScoutingReportPage({
             Top Offensive Players
           </h2>
           <p className="mt-1 text-sm text-slate-400">
-            Season leaders ranked by OPS.
+            OPS leaders with a minimum of 2.5 plate appearances per team game.
           </p>
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
@@ -585,11 +851,13 @@ export default async function ScoutingReportPage({
             team={abbreviationA}
             title={teamA.name}
             players={offenseLeaders(offensePlayersA)}
+            emptyMessage="No hitters met the season plate appearance minimum."
           />
           <PlayerLeaderboard
             team={abbreviationB}
             title={teamB.name}
             players={offenseLeaders(offensePlayersB)}
+            emptyMessage="No hitters met the season plate appearance minimum."
           />
         </div>
       </section>
@@ -603,7 +871,7 @@ export default async function ScoutingReportPage({
             Top Pitching Players
           </h2>
           <p className="mt-1 text-sm text-slate-400">
-            Season leaders ranked by strikeouts.
+            Strikeout leaders with a minimum of three batters faced per team game.
           </p>
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
@@ -611,12 +879,110 @@ export default async function ScoutingReportPage({
             team={abbreviationA}
             title={teamA.name}
             players={pitchingLeaders(pitchingPlayersA)}
+            emptyMessage="No pitchers met the season batters-faced minimum."
           />
           <PlayerLeaderboard
             team={abbreviationB}
             title={teamB.name}
             players={pitchingLeaders(pitchingPlayersB)}
+            emptyMessage="No pitchers met the season batters-faced minimum."
           />
+        </div>
+      </section>
+
+      <section className="mt-8" aria-labelledby="weekly-offense-heading">
+        <div className="mb-5">
+          <h2
+            id="weekly-offense-heading"
+            className="text-xl font-semibold text-white"
+          >
+            Last Week Offensive Players
+          </h2>
+          <p className="mt-1 text-sm text-slate-400">
+            Hot and cold OPS rankings with at least 10 weekly plate appearances.
+          </p>
+        </div>
+        <div className="grid gap-4 xl:grid-cols-2">
+          <div className="grid gap-4">
+            <PlayerLeaderboard
+              team={abbreviationA}
+              title="Hot Offensive Players - Last Week"
+              detail={formatWeek(latestOffenseWeekA[0]?.week_start_date)}
+              players={weeklyOffenseLeaders(hotOffenseA)}
+              emptyMessage="No hitters met the 10 PA weekly minimum."
+            />
+            <PlayerLeaderboard
+              team={abbreviationA}
+              title="Cold Offensive Players - Last Week"
+              detail={formatWeek(latestOffenseWeekA[0]?.week_start_date)}
+              players={weeklyOffenseLeaders(coldOffenseA)}
+              emptyMessage="No hitters met the 10 PA weekly minimum."
+            />
+          </div>
+          <div className="grid gap-4">
+            <PlayerLeaderboard
+              team={abbreviationB}
+              title="Hot Offensive Players - Last Week"
+              detail={formatWeek(latestOffenseWeekB[0]?.week_start_date)}
+              players={weeklyOffenseLeaders(hotOffenseB)}
+              emptyMessage="No hitters met the 10 PA weekly minimum."
+            />
+            <PlayerLeaderboard
+              team={abbreviationB}
+              title="Cold Offensive Players - Last Week"
+              detail={formatWeek(latestOffenseWeekB[0]?.week_start_date)}
+              players={weeklyOffenseLeaders(coldOffenseB)}
+              emptyMessage="No hitters met the 10 PA weekly minimum."
+            />
+          </div>
+        </div>
+      </section>
+
+      <section className="mt-8" aria-labelledby="weekly-pitching-heading">
+        <div className="mb-5">
+          <h2
+            id="weekly-pitching-heading"
+            className="text-xl font-semibold text-white"
+          >
+            Last Week Pitching Players
+          </h2>
+          <p className="mt-1 text-sm text-slate-400">
+            Hot and cold results with at least 10 weekly batters faced.
+          </p>
+        </div>
+        <div className="grid gap-4 xl:grid-cols-2">
+          <div className="grid gap-4">
+            <PlayerLeaderboard
+              team={abbreviationA}
+              title="Hot Pitching Players - Last Week"
+              detail={formatWeek(latestPitchingWeekA[0]?.week_start_date)}
+              players={weeklyPitchingLeaders(hotPitchingA)}
+              emptyMessage="No pitchers met the 10 BF weekly minimum."
+            />
+            <PlayerLeaderboard
+              team={abbreviationA}
+              title="Cold Pitching Players - Last Week"
+              detail={formatWeek(latestPitchingWeekA[0]?.week_start_date)}
+              players={weeklyPitchingLeaders(coldPitchingA)}
+              emptyMessage="No pitchers met the 10 BF weekly minimum."
+            />
+          </div>
+          <div className="grid gap-4">
+            <PlayerLeaderboard
+              team={abbreviationB}
+              title="Hot Pitching Players - Last Week"
+              detail={formatWeek(latestPitchingWeekB[0]?.week_start_date)}
+              players={weeklyPitchingLeaders(hotPitchingB)}
+              emptyMessage="No pitchers met the 10 BF weekly minimum."
+            />
+            <PlayerLeaderboard
+              team={abbreviationB}
+              title="Cold Pitching Players - Last Week"
+              detail={formatWeek(latestPitchingWeekB[0]?.week_start_date)}
+              players={weeklyPitchingLeaders(coldPitchingB)}
+              emptyMessage="No pitchers met the 10 BF weekly minimum."
+            />
+          </div>
         </div>
       </section>
     </div>

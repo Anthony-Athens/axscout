@@ -88,11 +88,15 @@ export function MetricComparison({
 export function PlayerLeaderboard({
   team,
   title,
+  detail,
   players,
+  emptyMessage = "No qualified player data available.",
 }: {
   team: string;
   title: string;
+  detail?: string;
   players: LeaderboardPlayer[];
+  emptyMessage?: string;
 }) {
   return (
     <article className="rounded-lg border border-slate-800 bg-slate-900 p-5">
@@ -100,6 +104,7 @@ export function PlayerLeaderboard({
         <h3 className="text-base font-semibold text-white">{title}</h3>
         <span className="text-sm font-semibold text-slate-500">{team}</span>
       </div>
+      {detail && <p className="mt-1 text-xs text-slate-500">{detail}</p>}
 
       {players.length ? (
         <ol className="mt-4 divide-y divide-slate-800 border-t border-slate-800">
@@ -116,7 +121,15 @@ export function PlayerLeaderboard({
                   {player.full_name}
                 </Link>
               </div>
-              <dl className="mt-3 grid grid-cols-3 gap-2 pl-10">
+              <dl
+                className={`mt-3 grid gap-2 pl-10 ${
+                  player.metrics.length >= 5
+                    ? "grid-cols-2 sm:grid-cols-5"
+                    : player.metrics.length === 4
+                      ? "grid-cols-2 sm:grid-cols-4"
+                      : "grid-cols-3"
+                }`}
+              >
                 {player.metrics.map((metric) => (
                   <div key={metric.label} className="min-w-0">
                     <dt className="text-xs text-slate-500">{metric.label}</dt>
@@ -130,7 +143,7 @@ export function PlayerLeaderboard({
           ))}
         </ol>
       ) : (
-        <p className="mt-5 text-sm text-slate-400">No player data available.</p>
+        <p className="mt-5 text-sm text-slate-400">{emptyMessage}</p>
       )}
     </article>
   );
