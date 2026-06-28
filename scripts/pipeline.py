@@ -5,7 +5,10 @@ from scripts.pipelines.build_team_season_pipeline import main as build_team_seas
 from scripts.pipelines.build_team_rolling_14_pipeline import (
     main as build_team_rolling_14_pipeline,
 )
-from scripts.config.settings import ENABLE_TEAM_WEEKLY_STATCAST
+from scripts.config.settings import (
+    ENABLE_PLAYER_STATCAST,
+    ENABLE_TEAM_WEEKLY_STATCAST,
+)
 
 
 
@@ -43,6 +46,18 @@ def main() -> None:
         )
     else:
         print("Skipping Team Weekly Statcast Aggregates (disabled).")
+
+    if ENABLE_PLAYER_STATCAST:
+        from scripts.pipelines.build_player_statcast_pipeline import (
+            main as build_player_statcast_pipeline,
+        )
+
+        run_pipeline(
+            "Build Player Statcast Aggregates",
+            build_player_statcast_pipeline,
+        )
+    else:
+        print("Skipping Player Statcast Aggregates (disabled).")
 
     print("AX Scout daily data refresh complete")
 
