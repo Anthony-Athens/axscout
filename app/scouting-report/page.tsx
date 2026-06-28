@@ -1,4 +1,5 @@
 import PageHeader from "@/components/layout/PageHeader";
+import ExportableScoutingReport from "@/components/ExportableScoutingReport";
 import {
   MetricComparison,
   PlayerLeaderboard,
@@ -11,6 +12,10 @@ import ScoutingReportFilters, {
 import EmptyState from "@/components/ui/EmptyState";
 import SectionCard from "@/components/ui/SectionCard";
 import { createClient } from "@/lib/supabase/server";
+import type {
+  ReportPlayer,
+  ScoutingReportData,
+} from "@/lib/scouting-report-export";
 
 const DEFAULT_TEAM_A = "PIT";
 const DEFAULT_TEAM_B = "CHC";
@@ -204,6 +209,7 @@ export default async function ScoutingReportPage({
     weeklyOffensePlayersBResult,
     weeklyPitchingPlayersAResult,
     weeklyPitchingPlayersBResult,
+    latestRefreshResult,
   ] = await Promise.all([
     supabase
       .from("agg_team_season")
@@ -345,6 +351,14 @@ export default async function ScoutingReportPage({
       .not("mlb_player_id", "is", null)
       .order("week_start_date", { ascending: false })
       .limit(200),
+    supabase
+      .from("data_refresh_runs")
+      .select("finished_at")
+      .eq("status", "success")
+      .not("finished_at", "is", null)
+      .order("finished_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   const seasonA = seasonAResult.data as SeasonMetrics | null;
@@ -593,6 +607,134 @@ export default async function ScoutingReportPage({
         },
       ],
     }));
+  const reportOffensePlayers = (
+    rows: Array<OffensePlayerRow | WeeklyOffensePlayerRow>
+  ): ReportPlayer[] =>
+    rows.map((player) => ({
+      mlbPlayerId: player.mlb_player_id,
+      fullName: playerName(player.mlb_player_id),
+      ops: player.ops,
+      battingAverage:
+        "batting_average" in player ? player.batting_average : null,
+      homeRuns: player.home_runs,
+      avgExitVelocity: player.avg_exit_velocity,
+    }));
+  const reportPitchingPlayers = (
+    rows: Array<PitchingPlayerRow | WeeklyPitchingPlayerRow>
+  ): ReportPlayer[] =>
+    rows.map((player) => ({
+      mlbPlayerId: player.mlb_player_id,
+      fullName: playerName(player.mlb_player_id),
+      strikeouts: player.strikeouts,
+      hitsAllowed: "hits_allowed" in player ? player.hits_allowed : null,
+      homeRunsAllowed:
+        "home_runs_allowed" in player ? player.home_runs_allowed : null,
+      avgPitchSpeed: player.avg_pitch_speed,
+      avgSpinRate: player.avg_spin_rate,
+    }));
+  const exportReportData: ScoutingReportData = {
+    matchup: `${teamA.name} vs ${teamB.name}`,
+    gameDate: null,
+    latestRefreshAt: latestRefreshResult.data?.finished_at ?? null,
+    teamA: {
+      side: "Team A",
+      name: teamA.name,
+      abbreviation: abbreviationA,
+      season: seasonA
+        ? {
+            gamesPlayed: seasonA.games_played,
+            wins: seasonA.wins,
+            losses: seasonA.losses,
+            winningPercentage: seasonA.winning_percentage,
+            runsScored: seasonA.runs_scored,
+            runsAllowed: seasonA.runs_allowed,
+            runDifferential: seasonA.run_differential,
+          }
+        : null,
+      rolling: rollingA
+        ? {
+            wins: rollingA.wins,
+            losses: rollingA.losses,
+            winningPercentage: rollingA.winning_percentage,
+            runsScoredPerGame: rollingA.runs_scored_per_game,
+            runsAllowedPerGame: rollingA.runs_allowed_per_game,
+            runDifferentialPerGame: rollingA.run_differential_per_game,
+          }
+        : null,
+      offense: offenseA
+        ? {
+            battingAverage: offenseA.batting_average,
+            ops: offenseA.ops,
+            homeRuns: offenseA.home_runs,
+            avgExitVelocity: offenseA.avg_exit_velocity,
+          }
+        : null,
+      pitching: pitchingA
+        ? {
+            strikeouts: pitchingA.strikeouts,
+            avgPitchSpeed: pitchingA.avg_pitch_speed,
+            avgSpinRate: pitchingA.avg_spin_rate,
+            era: pitchingA.era,
+            whip: pitchingA.whip,
+          }
+        : null,
+      seasonOffenseLeaders: reportOffensePlayers(offensePlayersA),
+      seasonPitchingLeaders: reportPitchingPlayers(pitchingPlayersA),
+      hotOffense: reportOffensePlayers(hotOffenseA),
+      coldOffense: reportOffensePlayers(coldOffenseA),
+      hotPitching: reportPitchingPlayers(hotPitchingA),
+      coldPitching: reportPitchingPlayers(coldPitchingA),
+    },
+    teamB: {
+      side: "Team B",
+      name: teamB.name,
+      abbreviation: abbreviationB,
+      season: seasonB
+        ? {
+            gamesPlayed: seasonB.games_played,
+            wins: seasonB.wins,
+            losses: seasonB.losses,
+            winningPercentage: seasonB.winning_percentage,
+            runsScored: seasonB.runs_scored,
+            runsAllowed: seasonB.runs_allowed,
+            runDifferential: seasonB.run_differential,
+          }
+        : null,
+      rolling: rollingB
+        ? {
+            wins: rollingB.wins,
+            losses: rollingB.losses,
+            winningPercentage: rollingB.winning_percentage,
+            runsScoredPerGame: rollingB.runs_scored_per_game,
+            runsAllowedPerGame: rollingB.runs_allowed_per_game,
+            runDifferentialPerGame: rollingB.run_differential_per_game,
+          }
+        : null,
+      offense: offenseB
+        ? {
+            battingAverage: offenseB.batting_average,
+            ops: offenseB.ops,
+            homeRuns: offenseB.home_runs,
+            avgExitVelocity: offenseB.avg_exit_velocity,
+          }
+        : null,
+      pitching: pitchingB
+        ? {
+            strikeouts: pitchingB.strikeouts,
+            avgPitchSpeed: pitchingB.avg_pitch_speed,
+            avgSpinRate: pitchingB.avg_spin_rate,
+            era: pitchingB.era,
+            whip: pitchingB.whip,
+          }
+        : null,
+      seasonOffenseLeaders: reportOffensePlayers(offensePlayersB),
+      seasonPitchingLeaders: reportPitchingPlayers(pitchingPlayersB),
+      hotOffense: reportOffensePlayers(hotOffenseB),
+      coldOffense: reportOffensePlayers(coldOffenseB),
+      hotPitching: reportPitchingPlayers(hotPitchingB),
+      coldPitching: reportPitchingPlayers(coldPitchingB),
+    },
+  };
 
   return (
     <div>
@@ -985,6 +1127,8 @@ export default async function ScoutingReportPage({
           </div>
         </div>
       </section>
+
+      <ExportableScoutingReport data={exportReportData} />
     </div>
   );
 }
