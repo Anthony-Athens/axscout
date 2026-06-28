@@ -43,23 +43,26 @@ WEEKLY_PERIOD_COLUMNS = [
 ]
 
 
-def _first_available_column(
+def _coalesce_columns(
     data: pd.DataFrame,
     candidates: tuple[str, ...],
 ) -> pd.Series:
+    values = pd.Series(pd.NA, index=data.index, dtype="string")
     for column in candidates:
         if column in data.columns:
-            return data[column].astype("string")
+            candidate = data[column].astype("string").str.strip()
+            candidate = candidate.mask(candidate.eq(""))
+            values = values.fillna(candidate)
 
-    return pd.Series(pd.NA, index=data.index, dtype="string")
+    return values
 
 
 def _infer_team_sides(data: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
-    batting_team = _first_available_column(
+    batting_team = _coalesce_columns(
         data,
         ("batting_team", "batter_team", "bat_team"),
     )
-    pitching_team = _first_available_column(
+    pitching_team = _coalesce_columns(
         data,
         ("pitching_team", "pitcher_team", "fld_team"),
     )
@@ -96,7 +99,7 @@ def _normalize_name(value):
         return None
 
     name = str(value).strip()
-    if not name:
+    if not name or name.lower() in {"nan", "none", "null"}:
         return None
 
     if name.count(",") == 1:
@@ -151,13 +154,22 @@ def prepare_player_statcast(statcast_data: pd.DataFrame) -> pd.DataFrame:
 
     # pybaseball's player_name is the pitcher. Batter names are used only when
     # the source explicitly provides a batter-specific name column.
-    data["batter_full_name"] = _first_available_column(
+    data["batter_full_name"] = _coalesce_columns(
         data,
-        ("batter_name", "batter_full_name", "hitter_name"),
+        (
+            "batter_full_name",
+            "batter_name",
+            "hitter_full_name",
+            "hitter_name",
+        ),
     ).map(_normalize_name)
-    data["pitcher_full_name"] = _first_available_column(
+    data["pitcher_full_name"] = _coalesce_columns(
         data,
-        ("pitcher_name", "pitcher_full_name", "player_name"),
+        (
+            "pitcher_full_name",
+            "pitcher_name",
+            "player_name",
+        ),
     ).map(_normalize_name)
 
     return data.dropna(subset=["game_date_value", "season"])

@@ -37,6 +37,14 @@ def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _clean_text(value) -> str | None:
+    if value is None:
+        return None
+
+    cleaned = str(value).strip()
+    return cleaned or None
+
+
 def _fetch_existing_players(player_ids: list[int]) -> dict[int, dict]:
     players: dict[int, dict] = {}
     for player_id_batch in _chunks(player_ids):
@@ -117,9 +125,9 @@ def _upsert_dim_players(row_groups: list[list[dict]]) -> dict[int, dict]:
             {
                 "mlb_player_id": player_id,
                 "full_name": (
-                    candidate["full_name"]
-                    or source.get("full_name")
-                    or current.get("full_name")
+                    _clean_text(current.get("full_name"))
+                    or _clean_text(candidate["full_name"])
+                    or _clean_text(source.get("full_name"))
                 ),
                 "current_team_abbreviation": (
                     candidate["current_team_abbreviation"]

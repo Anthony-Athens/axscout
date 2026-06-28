@@ -12,6 +12,18 @@ to 30 days. Season aggregates always use the current calendar year-to-date
 Statcast extract so they are not mislabeled partial-window totals. The master
 pipeline skips this work unless `ENABLE_PLAYER_STATCAST=true`.
 
+Missing player names can be backfilled independently with:
+
+```powershell
+python -m scripts.pipelines.backfill_player_names_pipeline
+```
+
+The backfill preserves every nonblank `dim_players.full_name`. For blank rows,
+it first checks the operational `players` table and then falls back to MLB's
+official people endpoint. Updates use the MLB player ID plus the original blank
+value as a concurrency guard, and each run is recorded in
+`data_refresh_runs`.
+
 ## Offense
 
 Plate appearances and rate statistics use terminal Statcast `events` values.
