@@ -85,6 +85,8 @@ type PitchingPlayerRow = {
   mlb_player_id: number;
   batters_faced: number | null;
   strikeouts: number | null;
+  era: number | null;
+  whip: number | null;
   avg_pitch_speed: number | null;
   avg_spin_rate: number | null;
 };
@@ -104,10 +106,19 @@ type WeeklyPitchingPlayerRow = {
   mlb_player_id: number;
   batters_faced: number | null;
   strikeouts: number | null;
+  walks: number | null;
   hits_allowed: number | null;
   home_runs_allowed: number | null;
+  era: number | null;
+  whip: number | null;
   avg_pitch_speed: number | null;
   avg_spin_rate: number | null;
+};
+
+type PitchingRankingRow = {
+  era: number | null;
+  whip: number | null;
+  strikeouts: number | null;
 };
 
 function formatDecimal(value: number | null | undefined, digits = 2) {
@@ -127,6 +138,54 @@ function formatDifferential(value: number | null | undefined, digits = 0) {
 
   const formatted = value.toFixed(digits);
   return value > 0 ? `+${formatted}` : formatted;
+}
+
+function compareNullableNumber(
+  valueA: number | null,
+  valueB: number | null,
+  direction: "ascending" | "descending"
+) {
+  if (valueA === null && valueB === null) {
+    return 0;
+  }
+  if (valueA === null) {
+    return 1;
+  }
+  if (valueB === null) {
+    return -1;
+  }
+  return direction === "ascending" ? valueA - valueB : valueB - valueA;
+}
+
+function bestPitchingSort(
+  playerA: PitchingRankingRow,
+  playerB: PitchingRankingRow
+) {
+  return (
+    compareNullableNumber(playerA.era, playerB.era, "ascending") ||
+    compareNullableNumber(playerA.whip, playerB.whip, "ascending") ||
+    (playerB.strikeouts ?? 0) - (playerA.strikeouts ?? 0)
+  );
+}
+
+function coldPitchingSort(
+  playerA: WeeklyPitchingPlayerRow,
+  playerB: WeeklyPitchingPlayerRow
+) {
+  return (
+    compareNullableNumber(playerA.era, playerB.era, "descending") ||
+    compareNullableNumber(playerA.whip, playerB.whip, "descending") ||
+    compareNullableNumber(
+      playerA.hits_allowed,
+      playerB.hits_allowed,
+      "descending"
+    ) ||
+    compareNullableNumber(
+      playerA.home_runs_allowed,
+      playerB.home_runs_allowed,
+      "descending"
+    )
+  );
 }
 
 function latestSeasonRows<T extends { season: number }>(rows: T[]): T[] {
@@ -404,22 +463,22 @@ export default async function ScoutingReportPage({
     supabase
       .from("agg_player_pitching_season")
       .select(
-        "season, mlb_player_id, batters_faced, strikeouts, avg_pitch_speed, avg_spin_rate"
+        "season, mlb_player_id, batters_faced, strikeouts, era, whip, avg_pitch_speed, avg_spin_rate"
       )
       .eq("team_abbreviation", abbreviationA)
       .not("mlb_player_id", "is", null)
       .order("season", { ascending: false })
-      .order("strikeouts", { ascending: false, nullsFirst: false })
+      .order("era", { ascending: true, nullsFirst: false })
       .limit(50),
     supabase
       .from("agg_player_pitching_season")
       .select(
-        "season, mlb_player_id, batters_faced, strikeouts, avg_pitch_speed, avg_spin_rate"
+        "season, mlb_player_id, batters_faced, strikeouts, era, whip, avg_pitch_speed, avg_spin_rate"
       )
       .eq("team_abbreviation", abbreviationB)
       .not("mlb_player_id", "is", null)
       .order("season", { ascending: false })
-      .order("strikeouts", { ascending: false, nullsFirst: false })
+      .order("era", { ascending: true, nullsFirst: false })
       .limit(50),
     supabase
       .from("agg_player_offense_weekly")
@@ -442,7 +501,7 @@ export default async function ScoutingReportPage({
     supabase
       .from("agg_player_pitching_weekly")
       .select(
-        "week_start_date, mlb_player_id, batters_faced, strikeouts, hits_allowed, home_runs_allowed, avg_pitch_speed, avg_spin_rate"
+        "week_start_date, mlb_player_id, batters_faced, strikeouts, walks, hits_allowed, home_runs_allowed, era, whip, avg_pitch_speed, avg_spin_rate"
       )
       .eq("team_abbreviation", abbreviationA)
       .not("mlb_player_id", "is", null)
@@ -451,7 +510,7 @@ export default async function ScoutingReportPage({
     supabase
       .from("agg_player_pitching_weekly")
       .select(
-        "week_start_date, mlb_player_id, batters_faced, strikeouts, hits_allowed, home_runs_allowed, avg_pitch_speed, avg_spin_rate"
+        "week_start_date, mlb_player_id, batters_faced, strikeouts, walks, hits_allowed, home_runs_allowed, era, whip, avg_pitch_speed, avg_spin_rate"
       )
       .eq("team_abbreviation", abbreviationB)
       .not("mlb_player_id", "is", null)
@@ -522,10 +581,7 @@ export default async function ScoutingReportPage({
       (player) =>
         (player.batters_faced ?? 0) >= minimumSeasonBattersFacedA
     )
-    .sort(
-      (playerA, playerB) =>
-        (playerB.strikeouts ?? 0) - (playerA.strikeouts ?? 0)
-    )
+    .sort(bestPitchingSort)
     .slice(0, 3);
   const pitchingPlayersB = latestSeasonRows(
     (pitchingPlayersBResult.data ?? []) as PitchingPlayerRow[]
@@ -534,10 +590,7 @@ export default async function ScoutingReportPage({
       (player) =>
         (player.batters_faced ?? 0) >= minimumSeasonBattersFacedB
     )
-    .sort(
-      (playerA, playerB) =>
-        (playerB.strikeouts ?? 0) - (playerA.strikeouts ?? 0)
-    )
+    .sort(bestPitchingSort)
     .slice(0, 3);
   const latestOffenseWeekA = latestWeekRows(
     (weeklyOffensePlayersAResult.data ?? []) as WeeklyOffensePlayerRow[]
@@ -582,23 +635,11 @@ export default async function ScoutingReportPage({
       (player.batters_faced ?? 0) >= MIN_WEEKLY_BATTERS_FACED
   );
   const hotPitchingA = [...qualifiedWeeklyPitchingA]
-    .sort(
-      (playerA, playerB) =>
-        (playerB.strikeouts ?? 0) - (playerA.strikeouts ?? 0)
-    )
+    .sort(bestPitchingSort)
     .slice(0, 3);
   const hotPitchingB = [...qualifiedWeeklyPitchingB]
-    .sort(
-      (playerA, playerB) =>
-        (playerB.strikeouts ?? 0) - (playerA.strikeouts ?? 0)
-    )
+    .sort(bestPitchingSort)
     .slice(0, 3);
-  const coldPitchingSort = (
-    playerA: WeeklyPitchingPlayerRow,
-    playerB: WeeklyPitchingPlayerRow
-  ) =>
-    (playerB.home_runs_allowed ?? 0) - (playerA.home_runs_allowed ?? 0) ||
-    (playerB.hits_allowed ?? 0) - (playerA.hits_allowed ?? 0);
   const coldPitchingA = [...qualifiedWeeklyPitchingA]
     .sort(coldPitchingSort)
     .slice(0, 3);
@@ -655,6 +696,8 @@ export default async function ScoutingReportPage({
       mlb_player_id: player.mlb_player_id,
       full_name: playerName(player.mlb_player_id),
       metrics: [
+        { label: "ERA", value: formatDecimal(player.era) },
+        { label: "WHIP", value: formatDecimal(player.whip) },
         { label: "K", value: player.strikeouts ?? "--" },
         {
           label: "Avg Velo",
@@ -698,8 +741,11 @@ export default async function ScoutingReportPage({
       mlb_player_id: player.mlb_player_id,
       full_name: playerName(player.mlb_player_id),
       metrics: [
+        { label: "ERA", value: formatDecimal(player.era) },
+        { label: "WHIP", value: formatDecimal(player.whip) },
         { label: "K", value: player.strikeouts ?? "--" },
         { label: "H", value: player.hits_allowed ?? "--" },
+        { label: "BB", value: player.walks ?? "--" },
         { label: "HR", value: player.home_runs_allowed ?? "--" },
         {
           label: "Avg Velo",
@@ -735,7 +781,10 @@ export default async function ScoutingReportPage({
     rows.map((player) => ({
       mlbPlayerId: player.mlb_player_id,
       fullName: playerName(player.mlb_player_id),
+      era: player.era,
+      whip: player.whip,
       strikeouts: player.strikeouts,
+      walks: "walks" in player ? player.walks : null,
       hitsAllowed: "hits_allowed" in player ? player.hits_allowed : null,
       homeRunsAllowed:
         "home_runs_allowed" in player ? player.home_runs_allowed : null,
@@ -1093,7 +1142,7 @@ export default async function ScoutingReportPage({
             Top Pitching Players
           </h2>
           <p className="mt-1 text-sm text-slate-600">
-            Strikeout leaders with a minimum of three batters faced per team game.
+            Lowest ERA among pitchers with at least three batters faced per team game.
           </p>
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
@@ -1169,7 +1218,7 @@ export default async function ScoutingReportPage({
             Last Week Pitching Players
           </h2>
           <p className="mt-1 text-sm text-slate-600">
-            Hot and cold results with at least 10 weekly batters faced.
+            Lowest and highest ERA results with at least 10 weekly batters faced.
           </p>
         </div>
         <div className="grid gap-4 xl:grid-cols-2">

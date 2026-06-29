@@ -5,7 +5,10 @@ export type ReportPlayer = {
   battingAverage?: number | null;
   homeRuns?: number | null;
   avgExitVelocity?: number | null;
+  era?: number | null;
+  whip?: number | null;
   strikeouts?: number | null;
+  walks?: number | null;
   hitsAllowed?: number | null;
   homeRunsAllowed?: number | null;
   avgPitchSpeed?: number | null;
@@ -96,6 +99,10 @@ function formatInteger(value: number | null | undefined) {
   return value === null || value === undefined
     ? "Not available"
     : Math.round(value).toString();
+}
+
+function formatPitchingRate(value: number | null | undefined) {
+  return value === null || value === undefined ? "--" : value.toFixed(2);
 }
 
 function formatDifferential(value: number | null | undefined, digits = 0) {
@@ -214,8 +221,15 @@ function playerRows(
     player.fullName,
     kind === "offense"
       ? `OPS ${formatNumber(player.ops, 3)}, AVG ${formatNumber(player.battingAverage, 3)}, HR ${formatInteger(player.homeRuns)}, EV ${formatNumber(player.avgExitVelocity, 1)} mph`
-      : `K ${formatInteger(player.strikeouts)}, H ${formatInteger(player.hitsAllowed)}, HR ${formatInteger(player.homeRunsAllowed)}, Velo ${formatNumber(player.avgPitchSpeed, 1)} mph, Spin ${formatNumber(player.avgSpinRate, 0)} rpm`,
+      : `ERA ${formatPitchingRate(player.era)}, WHIP ${formatPitchingRate(player.whip)}, K ${formatInteger(player.strikeouts)}, H ${formatInteger(player.hitsAllowed)}, BB ${formatInteger(player.walks)}, HR ${formatInteger(player.homeRunsAllowed)}`,
   ]);
+}
+
+function pitchingWatchSummary(player: ReportPlayer) {
+  if (player.era !== null && player.era !== undefined) {
+    return `a ${formatPitchingRate(player.era)} ERA and ${formatPitchingRate(player.whip)} WHIP`;
+  }
+  return `${formatInteger(player.strikeouts)} strikeouts`;
 }
 
 function escapeMarkdown(value: string) {
@@ -466,7 +480,7 @@ export function buildScoutingReport(
         ? `${team.side} (${team.abbreviation}): ${offensePlayer.fullName}, highlighted by an OPS of ${formatNumber(offensePlayer.ops, 3)}.`
         : null,
       pitchingPlayer
-        ? `${team.side} (${team.abbreviation}): ${pitchingPlayer.fullName}, highlighted by ${formatInteger(pitchingPlayer.strikeouts)} strikeouts in the available period.`
+        ? `${team.side} (${team.abbreviation}): ${pitchingPlayer.fullName}, highlighted by ${pitchingWatchSummary(pitchingPlayer)} in the available period.`
         : null,
     ].filter((item): item is string => Boolean(item));
   });

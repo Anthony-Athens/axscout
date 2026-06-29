@@ -141,11 +141,13 @@ export function PlayerLeaderboard({
               </div>
               <dl
                 className={`mt-3 grid gap-2 pl-10 ${
-                  player.metrics.length >= 5
-                    ? "grid-cols-2 sm:grid-cols-5"
-                    : player.metrics.length === 4
-                      ? "grid-cols-2 sm:grid-cols-4"
-                      : "grid-cols-3"
+                  player.metrics.length >= 6
+                    ? "grid-cols-2 sm:grid-cols-4"
+                    : player.metrics.length === 5
+                      ? "grid-cols-2 sm:grid-cols-5"
+                      : player.metrics.length === 4
+                        ? "grid-cols-2 sm:grid-cols-4"
+                        : "grid-cols-3"
                 }`}
               >
                 {player.metrics.map((metric) => (
