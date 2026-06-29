@@ -210,7 +210,7 @@ export default async function DashboardPage() {
       <div className="mt-8">
         <SectionCard
           title="Team Season Overview"
-          description="Season-to-date team records and run production from the AX Scout warehouse."
+          description="Season-to-date team records and run production from the AXScout warehouse."
         >
           <TeamSeasonTable rows={teamSeasonRows} />
         </SectionCard>
@@ -219,7 +219,7 @@ export default async function DashboardPage() {
       <div className="mt-8">
         <SectionCard
           title="Today's Games"
-          description="Current MLB matchups loaded from the AX Scout warehouse."
+          description="Current MLB matchups loaded from the AXScout warehouse."
         >
           <TodaysGamesTable games={todaysGames} />
         </SectionCard>

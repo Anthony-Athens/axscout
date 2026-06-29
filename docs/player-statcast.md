@@ -40,7 +40,7 @@ walks, hit by pitch, and sacrifice flies; SLG uses total bases per at-bat.
 
 pybaseball's standard Statcast response identifies the pitcher in
 `player_name`, but often has no batter-name column. The loader uses matching
-records from AX Scout's operational `players` table to enrich hitter names,
+records from AXScout's operational `players` table to enrich hitter names,
 handedness, and positions. Offense names remain null only when neither source
 has the metadata; player IDs and statistics still load normally.
 

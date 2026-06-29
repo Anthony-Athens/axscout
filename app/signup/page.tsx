@@ -7,7 +7,7 @@ export default function SignupPage() {
     <div className="max-w-2xl">
       <PageHeader
         label="Sign Up"
-        title="Create your AX Scout account"
+        title="Create your AXScout account"
         description="Save favorite teams and personalize your dashboard."
       />
 

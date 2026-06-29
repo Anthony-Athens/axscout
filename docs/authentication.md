@@ -1,6 +1,6 @@
 # Authentication
 
-AX Scout uses Supabase Auth with `@supabase/ssr` and the Next.js App Router.
+AXScout uses Supabase Auth with `@supabase/ssr` and the Next.js App Router.
 The dashboard remains public; account-only data is added after the server has
 verified the current user.
 

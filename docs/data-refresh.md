@@ -1,6 +1,6 @@
 # Data Refresh Windows
 
-AX Scout keeps local refreshes small by default and supports an explicit
+AXScout keeps local refreshes small by default and supports an explicit
 season-to-date mode for launch and backfills.
 
 ## Default Windows

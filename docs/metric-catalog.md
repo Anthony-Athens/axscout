@@ -1,4 +1,4 @@
-# AX Scout Metric Catalog
+# AXScout Metric Catalog
 
 This catalog defines the planned analytics warehouse metrics, their expected
 meaning, likely source, implementation status, and target storage location.

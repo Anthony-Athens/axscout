@@ -1,6 +1,6 @@
 # Pipeline Scheduling
 
-AX Scout uses `.github/workflows/daily-data-refresh.yml` to refresh production
+AXScout uses `.github/workflows/daily-data-refresh.yml` to refresh production
 data automatically. The workflow runs daily at 10:17 UTC and can also be
 started manually from GitHub Actions.
 
@@ -31,11 +31,11 @@ documentation.
 ## Manual Refresh
 
 1. Open the repository's **Actions** tab.
-2. Select **Daily AX Scout Data Refresh**.
+2. Select **Daily AXScout Data Refresh**.
 3. Select **Run workflow**.
 4. Choose the branch and confirm **Run workflow**.
 
-The concurrency group permits only one AX Scout refresh at a time. A manually
+The concurrency group permits only one AXScout refresh at a time. A manually
 started run waits for an active scheduled run instead of cancelling it.
 
 ## Verification

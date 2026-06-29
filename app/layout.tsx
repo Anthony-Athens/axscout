@@ -16,9 +16,25 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AX Scout",
+  title: {
+    default: "AXScout | Baseball Intelligence Platform",
+    template: "%s | AXScout",
+  },
   description:
-    "Baseball analytics, scouting reports, and prediction intelligence.",
+    "AXScout is a baseball intelligence platform delivering advanced team analytics, player intelligence, scouting reports, Statcast insights, and data-driven MLB analysis.",
+  openGraph: {
+    title: "AXScout | Baseball Intelligence Platform",
+    description:
+      "Team intelligence, player analytics, scouting reports, Statcast trends, and data-driven MLB insights.",
+    siteName: "AXScout",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "AXScout | Baseball Intelligence Platform",
+    description:
+      "Baseball intelligence powered by Statcast, advanced analytics, and machine learning.",
+  },
 };
 
 export default function RootLayout({

@@ -67,7 +67,7 @@ export default function LoginForm() {
       </button>
 
       <p className="text-sm text-slate-400">
-        New to AX Scout?{" "}
+        New to AXScout?{" "}
         <Link href="/signup" className="font-medium text-blue-300 hover:text-blue-200">
           Create an account
         </Link>

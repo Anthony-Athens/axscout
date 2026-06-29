@@ -35,7 +35,7 @@ export default async function ProfilePage() {
       <PageHeader
         label="Profile"
         title="Account profile"
-        description="Manage the identity shown across your AX Scout account."
+        description="Manage the identity shown across your AXScout account."
       />
 
       <SectionCard>
@@ -48,7 +48,7 @@ export default async function ProfilePage() {
           </div>
           <div className="min-w-0">
             <p className="truncate text-lg font-semibold text-white">
-              {fullName || "AX Scout member"}
+              {fullName || "AXScout member"}
             </p>
             <p className="truncate text-sm text-slate-400">{user.email}</p>
           </div>

@@ -13,7 +13,7 @@ export default async function Navbar() {
     <header className="border-b border-slate-800 bg-slate-950 text-white">
       <nav className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-4">
         <Link href="/" className="text-xl font-bold tracking-tight">
-          AX Scout
+          AXScout
         </Link>
 
         <div className="flex flex-wrap items-center gap-4 text-sm text-slate-300">
