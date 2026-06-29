@@ -6,6 +6,7 @@ from scripts.pipelines.build_team_rolling_14_pipeline import (
     main as build_team_rolling_14_pipeline,
 )
 from scripts.config.settings import (
+    ENABLE_PITCHING_SUMMARY,
     ENABLE_PLAYER_STATCAST,
     ENABLE_TEAM_WEEKLY_STATCAST,
 )
@@ -58,6 +59,18 @@ def main() -> None:
         )
     else:
         print("Skipping Player Statcast Aggregates (disabled).")
+
+    if ENABLE_PITCHING_SUMMARY:
+        from scripts.pipelines.build_pitching_summary_pipeline import (
+            main as build_pitching_summary_pipeline,
+        )
+
+        run_pipeline(
+            "Build Official Pitching Summaries",
+            build_pitching_summary_pipeline,
+        )
+    else:
+        print("Skipping Official Pitching Summaries (disabled).")
 
     print("AX Scout daily data refresh complete")
 
