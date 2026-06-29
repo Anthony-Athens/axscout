@@ -108,12 +108,17 @@ export default function ExportableScoutingReport({
     <section className="mt-8" aria-labelledby="export-report-heading">
       <div className="flex flex-wrap items-end justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
-          <h2
-            id="export-report-heading"
-            className="text-xl font-semibold text-slate-900"
-          >
-            Exportable Scouting Report
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2
+              id="export-report-heading"
+              className="text-xl font-semibold text-slate-900"
+            >
+              Exportable Scouting Report
+            </h2>
+            <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700">
+              Beta
+            </span>
+          </div>
           <p className="mt-1 text-sm text-slate-600">
             Deterministic matchup analysis generated from the data above.
           </p>
@@ -161,7 +166,7 @@ export default function ExportableScoutingReport({
             {report.staleWarning && (
               <div
                 role="status"
-                className="mt-5 rounded-lg border border-yellow-500/50 bg-yellow-500/10 px-4 py-3 text-sm font-medium text-yellow-200"
+                className="mt-5 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900"
               >
                 {report.staleWarning}
               </div>

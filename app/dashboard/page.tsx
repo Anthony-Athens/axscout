@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import FavoriteTeamsOverview from "@/components/FavoriteTeamsOverview";
 import PageHeader from "@/components/layout/PageHeader";
 import TeamSeasonTable from "@/components/TeamSeasonTable";
@@ -7,6 +9,13 @@ import DashboardGrid from "@/components/ui/DashboardGrid";
 import SectionCard from "@/components/ui/SectionCard";
 import StatCard from "@/components/ui/StatCard";
 import { createClient } from "@/lib/supabase/server";
+
+export const metadata: Metadata = {
+  title: "Dashboard",
+  description:
+    "View MLB season records, key team metrics, today's games, and personalized favorite teams in AXScout.",
+  alternates: { canonical: "/dashboard" },
+};
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 

@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import PageHeader from "@/components/layout/PageHeader";
 import ExportableScoutingReport from "@/components/ExportableScoutingReport";
 import {
@@ -17,6 +19,13 @@ import type {
   ReportPlayer,
   ScoutingReportData,
 } from "@/lib/scouting-report-export";
+
+export const metadata: Metadata = {
+  title: "Scouting Report",
+  description:
+    "Build a side-by-side MLB matchup scouting report with team form, recent trends, and player leaders.",
+  alternates: { canonical: "/scouting-report" },
+};
 
 const DEFAULT_TEAM_A = "PIT";
 const DEFAULT_TEAM_B = "CHC";

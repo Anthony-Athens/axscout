@@ -1,9 +1,14 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import PageHeader from "@/components/layout/PageHeader";
 import DashboardGrid from "@/components/ui/DashboardGrid";
 import SectionCard from "@/components/ui/SectionCard";
 import StatCard from "@/components/ui/StatCard";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 const capabilities = [
   {
@@ -94,7 +99,7 @@ export default function Home() {
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.7fr)] lg:items-center">
           <div>
             <PageHeader
-              label="AXScout"
+              label="AXScout Beta"
               title="Baseball intelligence for teams, players, and matchups."
               description="AXScout turns MLB game results, Statcast signals, and warehouse aggregates into practical baseball analytics for dashboards, trend analysis, scouting, and exportable matchup reports."
             />
