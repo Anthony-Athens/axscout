@@ -213,8 +213,8 @@ function playerRows(
     team.abbreviation,
     player.fullName,
     kind === "offense"
-      ? `OPS ${formatNumber(player.ops, 3)}, AVG ${formatNumber(player.battingAverage, 3)}, HR ${formatInteger(player.homeRuns)}, EV ${formatNumber(player.avgExitVelocity)} mph`
-      : `K ${formatInteger(player.strikeouts)}, H ${formatInteger(player.hitsAllowed)}, HR ${formatInteger(player.homeRunsAllowed)}, Velo ${formatNumber(player.avgPitchSpeed)} mph, Spin ${formatNumber(player.avgSpinRate, 0)} rpm`,
+      ? `OPS ${formatNumber(player.ops, 3)}, AVG ${formatNumber(player.battingAverage, 3)}, HR ${formatInteger(player.homeRuns)}, EV ${formatNumber(player.avgExitVelocity, 1)} mph`
+      : `K ${formatInteger(player.strikeouts)}, H ${formatInteger(player.hitsAllowed)}, HR ${formatInteger(player.homeRunsAllowed)}, Velo ${formatNumber(player.avgPitchSpeed, 1)} mph, Spin ${formatNumber(player.avgSpinRate, 0)} rpm`,
   ]);
 }
 
@@ -554,6 +554,10 @@ export function buildScoutingReport(
       heading: "Offensive Comparison",
       blocks: [
         {
+          type: "paragraph",
+          text: "Latest available weekly team offense metrics.",
+        },
+        {
           type: "table",
           headers: ["Team", "BA", "OPS", "HR", "Avg Exit Velocity"],
           rows: [teamA, teamB].map((team) => [
@@ -561,7 +565,7 @@ export function buildScoutingReport(
             formatNumber(team.offense?.battingAverage, 3),
             formatNumber(team.offense?.ops, 3),
             formatInteger(team.offense?.homeRuns),
-            `${formatNumber(team.offense?.avgExitVelocity)} mph`,
+            `${formatNumber(team.offense?.avgExitVelocity, 1)} mph`,
           ]),
         },
       ],
@@ -570,12 +574,16 @@ export function buildScoutingReport(
       heading: "Pitching Comparison",
       blocks: [
         {
+          type: "paragraph",
+          text: "Latest available weekly team pitching metrics.",
+        },
+        {
           type: "table",
           headers: ["Team", "K", "Avg Pitch Speed", "Avg Spin Rate", "ERA", "WHIP"],
           rows: [teamA, teamB].map((team) => [
             team.abbreviation,
             formatInteger(team.pitching?.strikeouts),
-            `${formatNumber(team.pitching?.avgPitchSpeed)} mph`,
+            `${formatNumber(team.pitching?.avgPitchSpeed, 1)} mph`,
             `${formatNumber(team.pitching?.avgSpinRate, 0)} rpm`,
             team.pitching?.era === null || !team.pitching
               ? "Coming soon"

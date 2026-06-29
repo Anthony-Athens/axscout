@@ -114,6 +114,12 @@ function formatDecimal(value: number | null | undefined, digits = 2) {
   return value === null || value === undefined ? "--" : value.toFixed(digits);
 }
 
+function formatInteger(value: number | null | undefined) {
+  return value === null || value === undefined
+    ? "--"
+    : Math.round(value).toString();
+}
+
 function formatDifferential(value: number | null | undefined, digits = 0) {
   if (value === null || value === undefined) {
     return "--";
@@ -137,86 +143,10 @@ function latestWeekRows<T extends { week_start_date: string }>(rows: T[]): T[] {
     : rows.filter((row) => row.week_start_date === latestWeek);
 }
 
-function latestAvailableSeasonRows<T extends { season: number }>(
-  rows: T[],
-  preferredSeason?: number
-): T[] {
-  const season =
-    preferredSeason !== undefined &&
-    rows.some((row) => row.season === preferredSeason)
-      ? preferredSeason
-      : rows[0]?.season;
-
-  return season === undefined
-    ? []
-    : rows.filter((row) => row.season === season);
-}
-
-function averageAvailable(
-  values: Array<number | null | undefined>
-): number | null {
-  const available = values.filter((value): value is number => value != null);
-  return available.length
-    ? available.reduce((total, value) => total + value, 0) / available.length
-    : null;
-}
-
-function sumAvailable(
-  values: Array<number | null | undefined>
-): number | null {
-  const available = values.filter((value): value is number => value != null);
-  return available.length
-    ? available.reduce((total, value) => total + value, 0)
-    : null;
-}
-
-function aggregateSeasonOffense(
-  rows: WeeklyOffense[],
-  preferredSeason?: number
-): Omit<WeeklyOffense, "season" | "week_start_date"> | null {
-  const seasonRows = latestAvailableSeasonRows(rows, preferredSeason);
-  if (!seasonRows.length) {
-    return null;
-  }
-
-  return {
-    batting_average: averageAvailable(
-      seasonRows.map((row) => row.batting_average)
-    ),
-    ops: averageAvailable(seasonRows.map((row) => row.ops)),
-    home_runs: sumAvailable(seasonRows.map((row) => row.home_runs)),
-    avg_exit_velocity: averageAvailable(
-      seasonRows.map((row) => row.avg_exit_velocity)
-    ),
-  };
-}
-
-function aggregateSeasonPitching(
-  rows: WeeklyPitching[],
-  preferredSeason?: number
-): Omit<WeeklyPitching, "season" | "week_start_date"> | null {
-  const seasonRows = latestAvailableSeasonRows(rows, preferredSeason);
-  if (!seasonRows.length) {
-    return null;
-  }
-
-  return {
-    strikeouts: sumAvailable(seasonRows.map((row) => row.strikeouts)),
-    era: averageAvailable(seasonRows.map((row) => row.era)),
-    whip: averageAvailable(seasonRows.map((row) => row.whip)),
-    avg_pitch_speed: averageAvailable(
-      seasonRows.map((row) => row.avg_pitch_speed)
-    ),
-    avg_spin_rate: averageAvailable(
-      seasonRows.map((row) => row.avg_spin_rate)
-    ),
-  };
-}
-
 function seasonSnapshotSections(
   season: SeasonMetrics | null,
-  offense: ReturnType<typeof aggregateSeasonOffense>,
-  pitching: ReturnType<typeof aggregateSeasonPitching>
+  offense: WeeklyOffense | null,
+  pitching: WeeklyPitching | null
 ): SnapshotSection[] {
   return [
     {
@@ -230,8 +160,8 @@ function seasonSnapshotSections(
           label: "Win %",
           value: formatDecimal(season?.winning_percentage, 3),
         },
-        { label: "Runs Scored", value: season?.runs_scored ?? "--" },
-        { label: "Runs Allowed", value: season?.runs_allowed ?? "--" },
+        { label: "Runs Scored", value: formatInteger(season?.runs_scored) },
+        { label: "Runs Allowed", value: formatInteger(season?.runs_allowed) },
         {
           label: "Run Differential",
           value: formatDifferential(season?.run_differential),
@@ -246,20 +176,20 @@ function seasonSnapshotSections(
           value: formatDecimal(offense?.batting_average, 3),
         },
         { label: "OPS", value: formatDecimal(offense?.ops, 3) },
-        { label: "Home Runs", value: offense?.home_runs ?? "--" },
+        { label: "Home Runs", value: formatInteger(offense?.home_runs) },
         {
           label: "Avg Exit Velocity",
           value:
             offense?.avg_exit_velocity == null
               ? "--"
-              : `${formatDecimal(offense.avg_exit_velocity)} mph`,
+              : `${formatDecimal(offense.avg_exit_velocity, 1)} mph`,
         },
       ],
     },
     {
       title: "Season Pitching",
       rows: [
-        { label: "Strikeouts", value: pitching?.strikeouts ?? "--" },
+        { label: "Strikeouts", value: formatInteger(pitching?.strikeouts) },
         {
           label: "ERA",
           value:
@@ -277,7 +207,7 @@ function seasonSnapshotSections(
           value:
             pitching?.avg_pitch_speed == null
               ? "--"
-              : `${formatDecimal(pitching.avg_pitch_speed)} mph`,
+              : `${formatDecimal(pitching.avg_pitch_speed, 1)} mph`,
         },
         {
           label: "Avg Spin Rate",
@@ -423,7 +353,7 @@ export default async function ScoutingReportPage({
       .eq("team_abbreviation", abbreviationA)
       .order("season", { ascending: false })
       .order("week_start_date", { ascending: false })
-      .limit(100),
+      .limit(1),
     supabase
       .from("agg_team_offense_weekly")
       .select(
@@ -432,7 +362,7 @@ export default async function ScoutingReportPage({
       .eq("team_abbreviation", abbreviationB)
       .order("season", { ascending: false })
       .order("week_start_date", { ascending: false })
-      .limit(100),
+      .limit(1),
     supabase
       .from("agg_team_pitching_weekly")
       .select(
@@ -441,7 +371,7 @@ export default async function ScoutingReportPage({
       .eq("team_abbreviation", abbreviationA)
       .order("season", { ascending: false })
       .order("week_start_date", { ascending: false })
-      .limit(100),
+      .limit(1),
     supabase
       .from("agg_team_pitching_weekly")
       .select(
@@ -450,7 +380,7 @@ export default async function ScoutingReportPage({
       .eq("team_abbreviation", abbreviationB)
       .order("season", { ascending: false })
       .order("week_start_date", { ascending: false })
-      .limit(100),
+      .limit(1),
     supabase
       .from("agg_player_offense_season")
       .select(
@@ -549,22 +479,6 @@ export default async function ScoutingReportPage({
   const offenseB = offenseRowsB[0] ?? null;
   const pitchingA = pitchingRowsA[0] ?? null;
   const pitchingB = pitchingRowsB[0] ?? null;
-  const seasonOffenseA = aggregateSeasonOffense(
-    offenseRowsA,
-    seasonA?.season
-  );
-  const seasonOffenseB = aggregateSeasonOffense(
-    offenseRowsB,
-    seasonB?.season
-  );
-  const seasonPitchingA = aggregateSeasonPitching(
-    pitchingRowsA,
-    seasonA?.season
-  );
-  const seasonPitchingB = aggregateSeasonPitching(
-    pitchingRowsB,
-    seasonB?.season
-  );
   const minimumSeasonPlateAppearancesA = qualificationMinimum(
     seasonA?.games_played,
     2.5
@@ -957,7 +871,7 @@ export default async function ScoutingReportPage({
             Season Comparison
           </h2>
           <p className="mt-1 text-sm text-slate-600">
-            Full season-to-date team results.
+            Season-to-date results with the latest weekly offense and pitching snapshot.
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
@@ -965,21 +879,13 @@ export default async function ScoutingReportPage({
             side="Team A"
             teamName={teamA.name}
             abbreviation={abbreviationA}
-            sections={seasonSnapshotSections(
-              seasonA,
-              seasonOffenseA,
-              seasonPitchingA
-            )}
+            sections={seasonSnapshotSections(seasonA, offenseA, pitchingA)}
           />
           <TeamSnapshotCard
             side="Team B"
             teamName={teamB.name}
             abbreviation={abbreviationB}
-            sections={seasonSnapshotSections(
-              seasonB,
-              seasonOffenseB,
-              seasonPitchingB
-            )}
+            sections={seasonSnapshotSections(seasonB, offenseB, pitchingB)}
           />
         </div>
       </section>
@@ -1063,19 +969,19 @@ export default async function ScoutingReportPage({
             },
             {
               label: "HR",
-              teamAValue: offenseA?.home_runs ?? "--",
-              teamBValue: offenseB?.home_runs ?? "--",
+              teamAValue: formatInteger(offenseA?.home_runs),
+              teamBValue: formatInteger(offenseB?.home_runs),
             },
             {
               label: "Avg Exit Velocity",
               teamAValue:
                 offenseA?.avg_exit_velocity === null || !offenseA
                   ? "--"
-                  : `${formatDecimal(offenseA.avg_exit_velocity)} mph`,
+                  : `${formatDecimal(offenseA.avg_exit_velocity, 1)} mph`,
               teamBValue:
                 offenseB?.avg_exit_velocity === null || !offenseB
                   ? "--"
-                  : `${formatDecimal(offenseB.avg_exit_velocity)} mph`,
+                  : `${formatDecimal(offenseB.avg_exit_velocity, 1)} mph`,
             },
           ]}
         />
@@ -1099,19 +1005,19 @@ export default async function ScoutingReportPage({
           rows={[
             {
               label: "Strikeouts",
-              teamAValue: pitchingA?.strikeouts ?? "--",
-              teamBValue: pitchingB?.strikeouts ?? "--",
+              teamAValue: formatInteger(pitchingA?.strikeouts),
+              teamBValue: formatInteger(pitchingB?.strikeouts),
             },
             {
               label: "Avg Pitch Speed",
               teamAValue:
                 pitchingA?.avg_pitch_speed === null || !pitchingA
                   ? "--"
-                  : `${formatDecimal(pitchingA.avg_pitch_speed)} mph`,
+                  : `${formatDecimal(pitchingA.avg_pitch_speed, 1)} mph`,
               teamBValue:
                 pitchingB?.avg_pitch_speed === null || !pitchingB
                   ? "--"
-                  : `${formatDecimal(pitchingB.avg_pitch_speed)} mph`,
+                  : `${formatDecimal(pitchingB.avg_pitch_speed, 1)} mph`,
             },
             {
               label: "Avg Spin Rate",
