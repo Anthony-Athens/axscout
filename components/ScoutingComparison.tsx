@@ -12,16 +12,21 @@ export type LeaderboardPlayer = {
   metrics: Array<{ label: string; value: string | number }>;
 };
 
+export type SnapshotSection = {
+  title: string;
+  rows: Array<{ label: string; value: string | number }>;
+};
+
 export function TeamSnapshotCard({
   side,
   teamName,
   abbreviation,
-  rows,
+  sections,
 }: {
   side: "Team A" | "Team B";
   teamName: string;
   abbreviation: string;
-  rows: Array<{ label: string; value: string | number }>;
+  sections: SnapshotSection[];
 }) {
   return (
     <article className="rounded-lg border border-slate-800 bg-slate-900 p-5">
@@ -32,17 +37,28 @@ export function TeamSnapshotCard({
           {abbreviation}
         </span>
       </div>
-      <dl className="mt-5 divide-y divide-slate-800 border-t border-slate-800">
-        {rows.map((row) => (
-          <div
-            key={row.label}
-            className="flex items-center justify-between gap-4 py-3"
-          >
-            <dt className="text-sm text-slate-400">{row.label}</dt>
-            <dd className="text-sm font-semibold text-white">{row.value}</dd>
-          </div>
+      <div className="mt-5 space-y-5">
+        {sections.map((section) => (
+          <section key={section.title}>
+            <h4 className="text-xs font-semibold uppercase text-slate-500">
+              {section.title}
+            </h4>
+            <dl className="mt-2 divide-y divide-slate-800 border-y border-slate-800">
+              {section.rows.map((row) => (
+                <div
+                  key={row.label}
+                  className="flex items-center justify-between gap-4 py-2.5"
+                >
+                  <dt className="text-sm text-slate-400">{row.label}</dt>
+                  <dd className="text-right text-sm font-semibold text-white">
+                    {row.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </section>
         ))}
-      </dl>
+      </div>
     </article>
   );
 }

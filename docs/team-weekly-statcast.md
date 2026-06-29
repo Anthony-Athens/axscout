@@ -3,6 +3,13 @@
 The weekly Statcast pipeline groups pitch-level data into Monday-through-Sunday
 team offense and pitching rows.
 
+The local extraction window defaults to 30 days via
+`STATCAST_LOOKBACK_DAYS`. Set `SEASON_START_DATE=YYYY-MM-DD` to refresh from
+the season start through today. `STATCAST_START_DATE` takes precedence when a
+custom start is needed, and `STATCAST_END_DATE` can pin the end date. All
+weekly rows are upserted by season, week start, and team; existing rows outside
+the selected window are not deleted.
+
 ## Offense
 
 Batting average and OPS are derived directly from the terminal plate-appearance

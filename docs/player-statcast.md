@@ -7,10 +7,17 @@ pitching aggregates. It runs independently with:
 python -m scripts.pipelines.build_player_statcast_pipeline
 ```
 
-`PLAYER_STATCAST_LOOKBACK_DAYS` controls the weekly refresh window and defaults
-to 30 days. Season aggregates always use the current calendar year-to-date
-Statcast extract so they are not mislabeled partial-window totals. The master
-pipeline skips this work unless `ENABLE_PLAYER_STATCAST=true`.
+`PLAYER_STATCAST_LOOKBACK_DAYS` controls the default extraction window and
+defaults to 30 days. Short-window runs update weekly aggregates and preserve
+the existing season aggregates. Set `SEASON_START_DATE=YYYY-MM-DD` to extract
+from the season start through today and safely rebuild the player season
+aggregates. `STATCAST_START_DATE` can override the extraction start and
+`STATCAST_END_DATE` can pin the end; when omitted, the end is today.
+
+Season aggregates are rebuilt only when the resolved window covers the
+configured `SEASON_START_DATE`, preventing a local 30-day run from replacing
+season-to-date totals with partial data. The master pipeline skips player work
+unless `ENABLE_PLAYER_STATCAST=true`.
 
 Missing player names can be backfilled independently with:
 

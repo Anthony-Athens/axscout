@@ -1,9 +1,8 @@
-from datetime import date, timedelta
-
 from scripts.config.settings import STATCAST_LOOKBACK_DAYS
 from scripts.extract.statcast import fetch_statcast
 from scripts.load.team_weekly_statcast import load_team_weekly_statcast
 from scripts.transform.team_weekly_statcast import build_team_weekly_statcast_rows
+from scripts.utils.date_windows import resolve_statcast_window
 from scripts.utils.refresh_log import (
     mark_refresh_failed,
     mark_refresh_success,
@@ -15,22 +14,23 @@ PIPELINE_NAME = "build_team_weekly_statcast_pipeline"
 
 def main(lookback_days: int | None = None) -> None:
     days = STATCAST_LOOKBACK_DAYS if lookback_days is None else lookback_days
-
-    if days < 1:
-        raise ValueError("Statcast lookback must be at least one day.")
-
-    end_date = date.today()
-    start_date = end_date - timedelta(days=days - 1)
+    window = resolve_statcast_window(days)
+    print(
+        "Team Statcast refresh window: "
+        f"start={window.start_date}, end={window.end_date} "
+        f"({window.source})."
+    )
     run_id = start_refresh(
         pipeline_name=PIPELINE_NAME,
-        source_date=str(end_date),
+        source_date=str(window.end_date),
     )
 
     try:
         statcast_data = fetch_statcast(
-            start_date=str(start_date),
-            end_date=str(end_date),
+            start_date=str(window.start_date),
+            end_date=str(window.end_date),
         )
+        print(f"Team Statcast rows extracted: {len(statcast_data)}.")
         offense_rows, pitching_rows = build_team_weekly_statcast_rows(
             statcast_data
         )
@@ -39,6 +39,7 @@ def main(lookback_days: int | None = None) -> None:
             pitching_rows,
         )
         records_loaded = offense_loaded + pitching_loaded
+        print(f"Team Statcast aggregate rows loaded: {records_loaded}.")
 
         mark_refresh_success(
             run_id=run_id,

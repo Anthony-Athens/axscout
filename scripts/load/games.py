@@ -1,4 +1,5 @@
 from scripts.utils.supabase_client import supabase
+from scripts.utils.supabase_pagination import batches
 
 
 def upsert_games(games: list[dict]) -> int:
@@ -18,9 +19,10 @@ def upsert_games(games: list[dict]) -> int:
         }
         print("Duplicate IDs:", duplicate_values)
 
-    supabase.table("games").upsert(
-        games,
-        on_conflict="mlb_game_pk",
-    ).execute()
+    for game_batch in batches(games):
+        supabase.table("games").upsert(
+            game_batch,
+            on_conflict="mlb_game_pk",
+        ).execute()
 
     return len(games)

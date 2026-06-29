@@ -12,6 +12,11 @@ MLB_PEOPLE_URL_TEMPLATE = "https://statsapi.mlb.com/api/v1/people/{mlb_player_id
 GAMES_LOOKBACK_DAYS = int(os.getenv("GAMES_LOOKBACK_DAYS", "7"))
 GAMES_LOOKAHEAD_DAYS = int(os.getenv("GAMES_LOOKAHEAD_DAYS", "7"))
 
+SEASON_START_DATE = os.getenv("SEASON_START_DATE", "").strip() or None
+SEASON_END_DATE = os.getenv("SEASON_END_DATE", "").strip() or None
+STATCAST_START_DATE = os.getenv("STATCAST_START_DATE", "").strip() or None
+STATCAST_END_DATE = os.getenv("STATCAST_END_DATE", "").strip() or None
+
 STATCAST_LOOKBACK_DAYS = int(os.getenv("STATCAST_LOOKBACK_DAYS", "30"))
 ENABLE_TEAM_WEEKLY_STATCAST = (
     os.getenv("ENABLE_TEAM_WEEKLY_STATCAST", "false").strip().lower()

@@ -29,7 +29,7 @@ def main() -> None:
         )
 
         print(f"Synced {teams_loaded} dim teams.")
-        print(f"Synced {games_loaded} fact games.")
+        print(f"fact_games rows loaded: {games_loaded}.")
 
     except Exception as error:
         mark_refresh_failed(

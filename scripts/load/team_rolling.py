@@ -1,5 +1,6 @@
 from scripts.transform.team_rolling import build_team_rolling_14_rows
 from scripts.utils.supabase_client import supabase
+from scripts.utils.supabase_pagination import select_all
 
 
 def replace_team_rolling_14_rows(rows: list[dict]) -> None:
@@ -13,13 +14,14 @@ def replace_team_rolling_14_rows(rows: list[dict]) -> None:
 
 
 def build_and_load_team_rolling_14() -> int:
-    team_daily_rows = (
-        supabase.table("agg_team_daily")
-        .select(
-            "mlb_game_pk, game_date, team_key, team_abbreviation, games_played, wins, losses, runs_scored, runs_allowed, run_differential"
-        )
-        .execute()
-        .data
+    team_daily_rows = select_all(
+        "agg_team_daily",
+        (
+            "mlb_game_pk, game_date, team_key, team_abbreviation, "
+            "games_played, wins, losses, runs_scored, runs_allowed, "
+            "run_differential"
+        ),
+        order_by=("id",),
     )
 
     rows = build_team_rolling_14_rows(team_daily_rows)

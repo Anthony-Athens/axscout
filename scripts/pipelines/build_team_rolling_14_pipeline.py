@@ -26,7 +26,7 @@ def main() -> None:
             records_loaded=records_loaded,
         )
 
-        print(f"Built {records_loaded} team rolling 14 rows.")
+        print(f"agg_team_rolling_14 rows loaded: {records_loaded}.")
 
     except Exception as error:
         mark_refresh_failed(

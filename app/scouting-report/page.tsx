@@ -5,6 +5,7 @@ import {
   PlayerLeaderboard,
   TeamSnapshotCard,
   type LeaderboardPlayer,
+  type SnapshotSection,
 } from "@/components/ScoutingComparison";
 import ScoutingReportFilters, {
   type ScoutingTeamOption,
@@ -43,6 +44,8 @@ type RollingMetrics = {
 };
 
 type WeeklyOffense = {
+  season: number;
+  week_start_date: string;
   batting_average: number | null;
   ops: number | null;
   home_runs: number | null;
@@ -50,6 +53,8 @@ type WeeklyOffense = {
 };
 
 type WeeklyPitching = {
+  season: number;
+  week_start_date: string;
   strikeouts: number | null;
   avg_pitch_speed: number | null;
   avg_spin_rate: number | null;
@@ -121,6 +126,160 @@ function latestWeekRows<T extends { week_start_date: string }>(rows: T[]): T[] {
   return latestWeek === undefined
     ? []
     : rows.filter((row) => row.week_start_date === latestWeek);
+}
+
+function latestAvailableSeasonRows<T extends { season: number }>(
+  rows: T[],
+  preferredSeason?: number
+): T[] {
+  const season =
+    preferredSeason !== undefined &&
+    rows.some((row) => row.season === preferredSeason)
+      ? preferredSeason
+      : rows[0]?.season;
+
+  return season === undefined
+    ? []
+    : rows.filter((row) => row.season === season);
+}
+
+function averageAvailable(
+  values: Array<number | null | undefined>
+): number | null {
+  const available = values.filter((value): value is number => value != null);
+  return available.length
+    ? available.reduce((total, value) => total + value, 0) / available.length
+    : null;
+}
+
+function sumAvailable(
+  values: Array<number | null | undefined>
+): number | null {
+  const available = values.filter((value): value is number => value != null);
+  return available.length
+    ? available.reduce((total, value) => total + value, 0)
+    : null;
+}
+
+function aggregateSeasonOffense(
+  rows: WeeklyOffense[],
+  preferredSeason?: number
+): Omit<WeeklyOffense, "season" | "week_start_date"> | null {
+  const seasonRows = latestAvailableSeasonRows(rows, preferredSeason);
+  if (!seasonRows.length) {
+    return null;
+  }
+
+  return {
+    batting_average: averageAvailable(
+      seasonRows.map((row) => row.batting_average)
+    ),
+    ops: averageAvailable(seasonRows.map((row) => row.ops)),
+    home_runs: sumAvailable(seasonRows.map((row) => row.home_runs)),
+    avg_exit_velocity: averageAvailable(
+      seasonRows.map((row) => row.avg_exit_velocity)
+    ),
+  };
+}
+
+function aggregateSeasonPitching(
+  rows: WeeklyPitching[],
+  preferredSeason?: number
+): Omit<WeeklyPitching, "season" | "week_start_date"> | null {
+  const seasonRows = latestAvailableSeasonRows(rows, preferredSeason);
+  if (!seasonRows.length) {
+    return null;
+  }
+
+  return {
+    strikeouts: sumAvailable(seasonRows.map((row) => row.strikeouts)),
+    era: averageAvailable(seasonRows.map((row) => row.era)),
+    whip: averageAvailable(seasonRows.map((row) => row.whip)),
+    avg_pitch_speed: averageAvailable(
+      seasonRows.map((row) => row.avg_pitch_speed)
+    ),
+    avg_spin_rate: averageAvailable(
+      seasonRows.map((row) => row.avg_spin_rate)
+    ),
+  };
+}
+
+function seasonSnapshotSections(
+  season: SeasonMetrics | null,
+  offense: ReturnType<typeof aggregateSeasonOffense>,
+  pitching: ReturnType<typeof aggregateSeasonPitching>
+): SnapshotSection[] {
+  return [
+    {
+      title: "Season Results",
+      rows: [
+        {
+          label: "Record",
+          value: season ? `${season.wins}-${season.losses}` : "--",
+        },
+        {
+          label: "Win %",
+          value: formatDecimal(season?.winning_percentage, 3),
+        },
+        { label: "Runs Scored", value: season?.runs_scored ?? "--" },
+        { label: "Runs Allowed", value: season?.runs_allowed ?? "--" },
+        {
+          label: "Run Differential",
+          value: formatDifferential(season?.run_differential),
+        },
+      ],
+    },
+    {
+      title: "Season Offense",
+      rows: [
+        {
+          label: "BA",
+          value: formatDecimal(offense?.batting_average, 3),
+        },
+        { label: "OPS", value: formatDecimal(offense?.ops, 3) },
+        { label: "Home Runs", value: offense?.home_runs ?? "--" },
+        {
+          label: "Avg Exit Velocity",
+          value:
+            offense?.avg_exit_velocity == null
+              ? "--"
+              : `${formatDecimal(offense.avg_exit_velocity)} mph`,
+        },
+      ],
+    },
+    {
+      title: "Season Pitching",
+      rows: [
+        { label: "Strikeouts", value: pitching?.strikeouts ?? "--" },
+        {
+          label: "ERA",
+          value:
+            pitching?.era == null ? "Coming soon" : formatDecimal(pitching.era),
+        },
+        {
+          label: "WHIP",
+          value:
+            pitching?.whip == null
+              ? "Coming soon"
+              : formatDecimal(pitching.whip, 3),
+        },
+        {
+          label: "Avg Pitch Speed",
+          value:
+            pitching?.avg_pitch_speed == null
+              ? "--"
+              : `${formatDecimal(pitching.avg_pitch_speed)} mph`,
+        },
+        {
+          label: "Avg Spin Rate",
+          value:
+            pitching?.avg_spin_rate == null
+              ? "--"
+              : `${formatDecimal(pitching.avg_spin_rate, 0)} rpm`,
+        },
+      ],
+    },
+  ];
 }
 
 function qualificationMinimum(
@@ -249,32 +408,40 @@ export default async function ScoutingReportPage({
       .maybeSingle(),
     supabase
       .from("agg_team_offense_weekly")
-      .select("batting_average, ops, home_runs, avg_exit_velocity")
+      .select(
+        "season, week_start_date, batting_average, ops, home_runs, avg_exit_velocity"
+      )
       .eq("team_abbreviation", abbreviationA)
+      .order("season", { ascending: false })
       .order("week_start_date", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+      .limit(100),
     supabase
       .from("agg_team_offense_weekly")
-      .select("batting_average, ops, home_runs, avg_exit_velocity")
+      .select(
+        "season, week_start_date, batting_average, ops, home_runs, avg_exit_velocity"
+      )
       .eq("team_abbreviation", abbreviationB)
+      .order("season", { ascending: false })
       .order("week_start_date", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+      .limit(100),
     supabase
       .from("agg_team_pitching_weekly")
-      .select("strikeouts, avg_pitch_speed, avg_spin_rate, era, whip")
+      .select(
+        "season, week_start_date, strikeouts, avg_pitch_speed, avg_spin_rate, era, whip"
+      )
       .eq("team_abbreviation", abbreviationA)
+      .order("season", { ascending: false })
       .order("week_start_date", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+      .limit(100),
     supabase
       .from("agg_team_pitching_weekly")
-      .select("strikeouts, avg_pitch_speed, avg_spin_rate, era, whip")
+      .select(
+        "season, week_start_date, strikeouts, avg_pitch_speed, avg_spin_rate, era, whip"
+      )
       .eq("team_abbreviation", abbreviationB)
+      .order("season", { ascending: false })
       .order("week_start_date", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+      .limit(100),
     supabase
       .from("agg_player_offense_season")
       .select(
@@ -365,10 +532,30 @@ export default async function ScoutingReportPage({
   const seasonB = seasonBResult.data as SeasonMetrics | null;
   const rollingA = rollingAResult.data as RollingMetrics | null;
   const rollingB = rollingBResult.data as RollingMetrics | null;
-  const offenseA = offenseAResult.data as WeeklyOffense | null;
-  const offenseB = offenseBResult.data as WeeklyOffense | null;
-  const pitchingA = pitchingAResult.data as WeeklyPitching | null;
-  const pitchingB = pitchingBResult.data as WeeklyPitching | null;
+  const offenseRowsA = (offenseAResult.data ?? []) as WeeklyOffense[];
+  const offenseRowsB = (offenseBResult.data ?? []) as WeeklyOffense[];
+  const pitchingRowsA = (pitchingAResult.data ?? []) as WeeklyPitching[];
+  const pitchingRowsB = (pitchingBResult.data ?? []) as WeeklyPitching[];
+  const offenseA = offenseRowsA[0] ?? null;
+  const offenseB = offenseRowsB[0] ?? null;
+  const pitchingA = pitchingRowsA[0] ?? null;
+  const pitchingB = pitchingRowsB[0] ?? null;
+  const seasonOffenseA = aggregateSeasonOffense(
+    offenseRowsA,
+    seasonA?.season
+  );
+  const seasonOffenseB = aggregateSeasonOffense(
+    offenseRowsB,
+    seasonB?.season
+  );
+  const seasonPitchingA = aggregateSeasonPitching(
+    pitchingRowsA,
+    seasonA?.season
+  );
+  const seasonPitchingB = aggregateSeasonPitching(
+    pitchingRowsB,
+    seasonB?.season
+  );
   const minimumSeasonPlateAppearancesA = qualificationMinimum(
     seasonA?.games_played,
     2.5
@@ -769,43 +956,21 @@ export default async function ScoutingReportPage({
             side="Team A"
             teamName={teamA.name}
             abbreviation={abbreviationA}
-            rows={[
-              {
-                label: "Record",
-                value: seasonA ? `${seasonA.wins}-${seasonA.losses}` : "--",
-              },
-              {
-                label: "Win %",
-                value: formatDecimal(seasonA?.winning_percentage, 3),
-              },
-              { label: "Runs Scored", value: seasonA?.runs_scored ?? "--" },
-              { label: "Runs Allowed", value: seasonA?.runs_allowed ?? "--" },
-              {
-                label: "Run Differential",
-                value: formatDifferential(seasonA?.run_differential),
-              },
-            ]}
+            sections={seasonSnapshotSections(
+              seasonA,
+              seasonOffenseA,
+              seasonPitchingA
+            )}
           />
           <TeamSnapshotCard
             side="Team B"
             teamName={teamB.name}
             abbreviation={abbreviationB}
-            rows={[
-              {
-                label: "Record",
-                value: seasonB ? `${seasonB.wins}-${seasonB.losses}` : "--",
-              },
-              {
-                label: "Win %",
-                value: formatDecimal(seasonB?.winning_percentage, 3),
-              },
-              { label: "Runs Scored", value: seasonB?.runs_scored ?? "--" },
-              { label: "Runs Allowed", value: seasonB?.runs_allowed ?? "--" },
-              {
-                label: "Run Differential",
-                value: formatDifferential(seasonB?.run_differential),
-              },
-            ]}
+            sections={seasonSnapshotSections(
+              seasonB,
+              seasonOffenseB,
+              seasonPitchingB
+            )}
           />
         </div>
       </section>

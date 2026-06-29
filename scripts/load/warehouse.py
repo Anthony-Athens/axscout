@@ -1,4 +1,5 @@
 from scripts.utils.supabase_client import supabase
+from scripts.utils.supabase_pagination import batches, select_all
 
 
 def sync_dim_teams() -> int:
@@ -18,9 +19,14 @@ def sync_dim_teams() -> int:
 
 
 def sync_fact_games() -> int:
-    games = supabase.table("games").select(
-        "mlb_game_pk, game_date, home_team, away_team, home_score, away_score, status"
-    ).execute().data
+    games = select_all(
+        "games",
+        (
+            "mlb_game_pk, game_date, home_team, away_team, home_score, "
+            "away_score, status"
+        ),
+        order_by=("mlb_game_pk",),
+    )
 
     teams = supabase.table("dim_teams").select(
         "team_key, abbreviation"
@@ -56,9 +62,10 @@ def sync_fact_games() -> int:
     if not fact_games:
         return 0
 
-    supabase.table("fact_games").upsert(
-        fact_games,
-        on_conflict="mlb_game_pk",
-    ).execute()
+    for game_batch in batches(fact_games):
+        supabase.table("fact_games").upsert(
+            game_batch,
+            on_conflict="mlb_game_pk",
+        ).execute()
 
     return len(fact_games)
