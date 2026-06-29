@@ -65,9 +65,9 @@ function FeatureCard({
   description: string;
 }) {
   return (
-    <article className="rounded-lg border border-slate-800 bg-slate-900/70 p-5">
-      <h3 className="text-base font-semibold text-white">{title}</h3>
-      <p className="mt-2 text-sm leading-6 text-slate-400">{description}</p>
+    <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <h3 className="text-base font-semibold text-slate-900">{title}</h3>
+      <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
     </article>
   );
 }
@@ -78,7 +78,7 @@ function PillList({ items }: { items: string[] }) {
       {items.map((item) => (
         <li
           key={item}
-          className="rounded-lg border border-slate-800 bg-slate-950/50 px-4 py-3 text-sm text-slate-300"
+          className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm"
         >
           {item}
         </li>
@@ -90,7 +90,7 @@ function PillList({ items }: { items: string[] }) {
 export default function Home() {
   return (
     <div className="space-y-10">
-      <section className="rounded-xl border border-slate-800 bg-slate-900/50 px-6 py-10 sm:px-8 lg:px-10">
+      <section className="rounded-xl border border-slate-200 bg-white px-6 py-10 shadow-sm sm:px-8 lg:px-10">
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.7fr)] lg:items-center">
           <div>
             <PageHeader
@@ -102,19 +102,19 @@ export default function Home() {
             <div className="flex flex-col gap-3 sm:flex-row">
               <Link
                 href="/dashboard"
-                className="rounded-lg bg-blue-500 px-5 py-3 text-center font-semibold text-white transition hover:bg-blue-400"
+                className="rounded-lg bg-blue-600 px-5 py-3 text-center font-semibold text-white transition hover:bg-blue-700"
               >
                 View Dashboard
               </Link>
               <Link
                 href="/trends/team"
-                className="rounded-lg border border-slate-700 px-5 py-3 text-center font-semibold text-slate-200 transition hover:border-blue-400 hover:bg-slate-900"
+                className="rounded-lg border border-slate-300 px-5 py-3 text-center font-semibold text-slate-700 transition hover:border-blue-500 hover:text-blue-700"
               >
                 Explore Team Trends
               </Link>
               <Link
                 href="/scouting-report"
-                className="rounded-lg border border-slate-700 px-5 py-3 text-center font-semibold text-slate-200 transition hover:border-blue-400 hover:bg-slate-900"
+                className="rounded-lg border border-slate-300 px-5 py-3 text-center font-semibold text-slate-700 transition hover:border-blue-500 hover:text-blue-700"
               >
                 Build Scouting Report
               </Link>
@@ -163,10 +163,10 @@ export default function Home() {
 
       <section aria-labelledby="capabilities-heading" className="space-y-5">
         <div>
-          <h2 id="capabilities-heading" className="text-xl font-semibold text-white">
+          <h2 id="capabilities-heading" className="text-xl font-semibold text-slate-900">
             Core Capabilities
           </h2>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-slate-600">
             The main workflows available across the AXScout beta.
           </p>
         </div>
@@ -204,13 +204,13 @@ export default function Home() {
         </DashboardGrid>
       </SectionCard>
 
-      <section className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-6 sm:p-8">
+      <section className="rounded-xl border border-blue-200 bg-blue-50 p-6 sm:p-8">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="text-2xl font-semibold text-white">
+            <h2 className="text-2xl font-semibold text-slate-950">
               Start exploring AXScout.
             </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-700">
               Open the public dashboard, inspect team trends, or build a matchup
               scouting report from the current analytics warehouse.
             </p>
@@ -218,13 +218,13 @@ export default function Home() {
           <div className="flex flex-col gap-3 sm:flex-row">
             <Link
               href="/dashboard"
-              className="rounded-lg bg-blue-500 px-5 py-3 text-center font-semibold text-white transition hover:bg-blue-400"
+              className="rounded-lg bg-blue-600 px-5 py-3 text-center font-semibold text-white transition hover:bg-blue-700"
             >
               View Dashboard
             </Link>
             <Link
               href="/scouting-report"
-              className="rounded-lg border border-blue-400/60 px-5 py-3 text-center font-semibold text-blue-100 transition hover:bg-blue-500/20"
+              className="rounded-lg border border-blue-300 px-5 py-3 text-center font-semibold text-blue-700 transition hover:bg-blue-100"
             >
               Build Scouting Report
             </Link>

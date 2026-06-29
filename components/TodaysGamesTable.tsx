@@ -22,7 +22,7 @@ type GameRow = {
 export default function TodaysGamesTable({ games }: { games: GameRow[] }) {
   if (!games.length) {
     return (
-      <p className="text-sm text-slate-400">
+      <p className="text-sm text-slate-600">
         No games found for today.
       </p>
     );
@@ -41,7 +41,7 @@ export default function TodaysGamesTable({ games }: { games: GameRow[] }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left text-sm">
-        <thead className="border-b border-slate-800 text-slate-400">
+        <thead className="border-b border-slate-200 text-slate-600">
           <tr>
             <th className="py-3">Matchup</th>
             <th className="py-3">Status</th>
@@ -52,13 +52,13 @@ export default function TodaysGamesTable({ games }: { games: GameRow[] }) {
         <tbody>
           {games.map((game) => (
             <tr key={game.mlb_game_pk} className="border-b border-slate-900">
-              <td className="py-3 font-semibold text-white">
+              <td className="py-3 font-semibold text-slate-950">
                 {getAbbreviation(game.away_team)} @ {getAbbreviation(game.home_team)}
               </td>
 
-              <td className="py-3 text-slate-300">{game.status ?? "--"}</td>
+              <td className="py-3 text-slate-800">{game.status ?? "--"}</td>
 
-              <td className="py-3 text-slate-300">
+              <td className="py-3 text-slate-800">
                 {game.away_score ?? "-"} - {game.home_score ?? "-"}
               </td>
             </tr>

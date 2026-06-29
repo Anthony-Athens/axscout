@@ -25,7 +25,7 @@ export default function FavoriteTeamsOverview({
 }) {
   if (!teams.length) {
     return (
-      <p className="text-sm text-slate-400">
+      <p className="text-sm text-slate-600">
         Select favorite teams below to personalize your dashboard.
       </p>
     );
@@ -36,13 +36,13 @@ export default function FavoriteTeamsOverview({
       {teams.map((team) => (
         <div
           key={team.team_abbreviation}
-          className="rounded-xl border border-slate-800 bg-slate-950 p-5"
+          className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
         >
           <div className="flex items-center justify-between">
-            <h3 className="text-xl font-bold text-white">
+            <h3 className="text-xl font-bold text-slate-950">
               {team.team_abbreviation}
             </h3>
-            <span className="text-sm text-slate-400">
+            <span className="text-sm text-slate-600">
               {team.wins}-{team.losses}
             </span>
           </div>
@@ -50,21 +50,21 @@ export default function FavoriteTeamsOverview({
           <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
             <div>
               <p className="text-slate-500">Season Win %</p>
-              <p className="font-semibold text-slate-200">
+              <p className="font-semibold text-slate-900">
                 {team.winning_percentage ?? "--"}
               </p>
             </div>
 
             <div>
               <p className="text-slate-500">Season Diff</p>
-              <p className="font-semibold text-slate-200">
+              <p className="font-semibold text-slate-900">
                 {team.run_differential}
               </p>
             </div>
 
             <div>
               <p className="text-slate-500">Last 14</p>
-              <p className="font-semibold text-slate-200">
+              <p className="font-semibold text-slate-900">
                 {team.rolling_14
                   ? `${team.rolling_14.wins}-${team.rolling_14.losses}`
                   : "--"}
@@ -73,21 +73,21 @@ export default function FavoriteTeamsOverview({
 
             <div>
               <p className="text-slate-500">Last 14 Diff/G</p>
-              <p className="font-semibold text-slate-200">
+              <p className="font-semibold text-slate-900">
                 {team.rolling_14?.run_differential_per_game ?? "--"}
               </p>
             </div>
 
             <div>
               <p className="text-slate-500">RS/G</p>
-              <p className="font-semibold text-slate-200">
+              <p className="font-semibold text-slate-900">
                 {team.rolling_14?.runs_scored_per_game ?? "--"}
               </p>
             </div>
 
             <div>
               <p className="text-slate-500">RA/G</p>
-              <p className="font-semibold text-slate-200">
+              <p className="font-semibold text-slate-900">
                 {team.rolling_14?.runs_allowed_per_game ?? "--"}
               </p>
             </div>

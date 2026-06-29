@@ -216,22 +216,22 @@ export default async function IndividualTrendsPage({
         description="Year-to-date performance and weekly Statcast trends."
       />
 
-      <div className="mb-8 flex flex-wrap gap-x-8 gap-y-3 border-y border-slate-800 py-4 text-sm">
+      <div className="mb-8 flex flex-wrap gap-x-8 gap-y-3 border-y border-slate-200 py-4 text-sm">
         <p>
           <span className="text-slate-500">Team</span>{" "}
-          <span className="font-semibold text-slate-200">
+          <span className="font-semibold text-slate-900">
             {selectedPlayer.current_team_abbreviation ?? "--"}
           </span>
         </p>
         <p>
           <span className="text-slate-500">Position</span>{" "}
-          <span className="font-semibold text-slate-200">
+          <span className="font-semibold text-slate-900">
             {selectedPlayer.primary_position ?? "--"}
           </span>
         </p>
         <p>
           <span className="text-slate-500">MLB ID</span>{" "}
-          <span className="font-semibold text-slate-200">{playerId}</span>
+          <span className="font-semibold text-slate-900">{playerId}</span>
         </p>
       </div>
 
@@ -244,10 +244,10 @@ export default async function IndividualTrendsPage({
 
       <section className="mt-8" aria-labelledby="offense-heading">
         <div className="mb-5">
-          <h2 id="offense-heading" className="text-xl font-semibold text-white">
+          <h2 id="offense-heading" className="text-xl font-semibold text-slate-900">
             YTD Offense
           </h2>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-slate-600">
             {offenseSeason
               ? `${offenseSeason.season} season-to-date batting performance.`
               : "Season-to-date batting performance."}
@@ -286,10 +286,10 @@ export default async function IndividualTrendsPage({
 
       <section className="mt-8" aria-labelledby="pitching-heading">
         <div className="mb-5">
-          <h2 id="pitching-heading" className="text-xl font-semibold text-white">
+          <h2 id="pitching-heading" className="text-xl font-semibold text-slate-900">
             YTD Pitching
           </h2>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-slate-600">
             {pitchingSeason
               ? `${pitchingSeason.season} season-to-date pitching performance.`
               : "Season-to-date pitching performance."}
@@ -347,11 +347,11 @@ export default async function IndividualTrendsPage({
         <div className="mb-5">
           <h2
             id="offense-trends-heading"
-            className="text-xl font-semibold text-white"
+            className="text-xl font-semibold text-slate-900"
           >
             Weekly Offense Trends
           </h2>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-slate-600">
             Weekly batting results and quality of contact.
           </p>
         </div>
@@ -393,11 +393,11 @@ export default async function IndividualTrendsPage({
         <div className="mb-5">
           <h2
             id="pitching-trends-heading"
-            className="text-xl font-semibold text-white"
+            className="text-xl font-semibold text-slate-900"
           >
             Weekly Pitching Trends
           </h2>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-slate-600">
             Weekly outcomes, velocity, and pitch characteristics.
           </p>
         </div>

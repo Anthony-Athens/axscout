@@ -53,9 +53,9 @@ export default function WeeklyMetricChart({
 
   if (!points.length) {
     return (
-      <div className="flex min-h-72 flex-col rounded-lg border border-slate-800 bg-slate-900 p-5">
-        <h3 className="text-sm font-semibold text-white">{title}</h3>
-        <div className="flex flex-1 items-center justify-center text-sm text-slate-400">
+      <div className="flex min-h-72 flex-col rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+        <div className="flex flex-1 items-center justify-center text-sm text-slate-600">
           {emptyLabel}
         </div>
       </div>
@@ -82,13 +82,15 @@ export default function WeeklyMetricChart({
   const active = activeIndex === null ? latest : points[activeIndex] ?? latest;
 
   return (
-    <div className="rounded-lg border border-slate-800 bg-slate-900 p-5">
+    <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex min-h-12 items-start justify-between gap-4">
         <div>
-          <h3 className="text-sm font-semibold text-white">{title}</h3>
-          <p className="mt-1 text-xs text-slate-500">Week of {formatWeek(active.week_start_date)}</p>
+          <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+          <p className="mt-1 text-xs text-slate-500">
+            Week of {formatWeek(active.week_start_date)}
+          </p>
         </div>
-        <p className="text-xl font-bold text-white">
+        <p className="text-xl font-bold text-slate-950">
           {formatValue(active.value, valueFormat)}
         </p>
       </div>

@@ -29,28 +29,30 @@ export function TeamSnapshotCard({
   sections: SnapshotSection[];
 }) {
   return (
-    <article className="rounded-lg border border-slate-800 bg-slate-900 p-5">
-      <p className="text-xs font-semibold uppercase text-blue-400">{side}</p>
+    <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
+        {side}
+      </p>
       <div className="mt-2 flex items-baseline justify-between gap-4">
-        <h3 className="min-w-0 text-lg font-semibold text-white">{teamName}</h3>
-        <span className="shrink-0 text-sm font-semibold text-slate-400">
+        <h3 className="min-w-0 text-lg font-semibold text-slate-950">{teamName}</h3>
+        <span className="shrink-0 text-sm font-semibold text-slate-500">
           {abbreviation}
         </span>
       </div>
       <div className="mt-5 space-y-5">
         {sections.map((section) => (
           <section key={section.title}>
-            <h4 className="text-xs font-semibold uppercase text-slate-500">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-blue-600">
               {section.title}
             </h4>
-            <dl className="mt-2 divide-y divide-slate-800 border-y border-slate-800">
+            <dl className="mt-2 divide-y divide-slate-100 border-y border-slate-200">
               {section.rows.map((row) => (
                 <div
                   key={row.label}
                   className="flex items-center justify-between gap-4 py-2.5"
                 >
-                  <dt className="text-sm text-slate-400">{row.label}</dt>
-                  <dd className="text-right text-sm font-semibold text-white">
+                  <dt className="text-sm text-slate-600">{row.label}</dt>
+                  <dd className="text-right text-sm font-semibold text-slate-950">
                     {row.value}
                   </dd>
                 </div>
@@ -73,25 +75,25 @@ export function MetricComparison({
   rows: ComparisonRow[];
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-slate-800 bg-slate-900">
-      <div className="grid grid-cols-[minmax(0,1fr)_minmax(7rem,0.8fr)_minmax(0,1fr)] border-b border-slate-800 bg-slate-950/60 px-4 py-3 text-sm font-semibold">
-        <span className="text-blue-300">{teamA}</span>
-        <span className="text-center text-slate-500">Metric</span>
-        <span className="text-right text-emerald-300">{teamB}</span>
+    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+      <div className="grid grid-cols-[minmax(0,1fr)_minmax(7rem,0.8fr)_minmax(0,1fr)] border-b border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold">
+        <span className="text-blue-600">{teamA}</span>
+        <span className="text-center text-slate-600">Metric</span>
+        <span className="text-right text-emerald-700">{teamB}</span>
       </div>
-      <dl className="divide-y divide-slate-800">
+      <dl className="divide-y divide-slate-100">
         {rows.map((row) => (
           <div
             key={row.label}
             className="grid grid-cols-[minmax(0,1fr)_minmax(7rem,0.8fr)_minmax(0,1fr)] items-center gap-2 px-4 py-3"
           >
-            <dd className="text-sm font-semibold text-white">
+            <dd className="text-sm font-semibold text-slate-950">
               {row.teamAValue}
             </dd>
-            <dt className="text-center text-xs text-slate-400 sm:text-sm">
+            <dt className="text-center text-xs text-slate-600 sm:text-sm">
               {row.label}
             </dt>
-            <dd className="text-right text-sm font-semibold text-white">
+            <dd className="text-right text-sm font-semibold text-slate-950">
               {row.teamBValue}
             </dd>
           </div>
@@ -115,24 +117,24 @@ export function PlayerLeaderboard({
   emptyMessage?: string;
 }) {
   return (
-    <article className="rounded-lg border border-slate-800 bg-slate-900 p-5">
+    <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-baseline justify-between gap-4">
-        <h3 className="text-base font-semibold text-white">{title}</h3>
-        <span className="text-sm font-semibold text-slate-500">{team}</span>
+        <h3 className="text-base font-semibold text-slate-950">{title}</h3>
+        <span className="text-sm font-semibold text-blue-600">{team}</span>
       </div>
       {detail && <p className="mt-1 text-xs text-slate-500">{detail}</p>}
 
       {players.length ? (
-        <ol className="mt-4 divide-y divide-slate-800 border-t border-slate-800">
+        <ol className="mt-4 divide-y divide-slate-100 border-t border-slate-200">
           {players.map((player, index) => (
             <li key={player.mlb_player_id} className="py-4">
               <div className="flex items-center gap-3">
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-slate-800 text-xs font-bold text-slate-300">
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-700">
                   {index + 1}
                 </span>
                 <Link
                   href={`/trends/individual?playerId=${player.mlb_player_id}`}
-                  className="min-w-0 truncate font-semibold text-white hover:text-blue-300"
+                  className="min-w-0 truncate font-semibold text-slate-950 hover:text-blue-600"
                 >
                   {player.full_name}
                 </Link>
@@ -148,8 +150,10 @@ export function PlayerLeaderboard({
               >
                 {player.metrics.map((metric) => (
                   <div key={metric.label} className="min-w-0">
-                    <dt className="text-xs text-slate-500">{metric.label}</dt>
-                    <dd className="mt-1 truncate text-sm font-semibold text-slate-200">
+                    <dt className="text-xs font-medium text-slate-500">
+                      {metric.label}
+                    </dt>
+                    <dd className="mt-1 truncate text-sm font-semibold text-slate-900">
                       {metric.value}
                     </dd>
                   </div>
@@ -159,7 +163,7 @@ export function PlayerLeaderboard({
           ))}
         </ol>
       ) : (
-        <p className="mt-5 text-sm text-slate-400">{emptyMessage}</p>
+        <p className="mt-5 text-sm text-slate-600">{emptyMessage}</p>
       )}
     </article>
   );

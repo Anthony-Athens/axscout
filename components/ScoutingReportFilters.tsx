@@ -33,7 +33,7 @@ export default function ScoutingReportFilters({
       <div className="min-w-0">
         <label
           htmlFor="scouting-team-a"
-          className="mb-2 block text-sm font-medium text-slate-200"
+          className="mb-2 block text-sm font-medium text-slate-700"
         >
           Team A
         </label>
@@ -43,7 +43,7 @@ export default function ScoutingReportFilters({
           value={teamA}
           disabled={!teams.length}
           onChange={(event) => updateMatchup(event.target.value, teamB)}
-          className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-blue-400 disabled:opacity-60"
+          className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
         >
           {teams.map((team) => (
             <option key={team.team_key} value={team.abbreviation}>
@@ -56,7 +56,7 @@ export default function ScoutingReportFilters({
       <div className="min-w-0">
         <label
           htmlFor="scouting-team-b"
-          className="mb-2 block text-sm font-medium text-slate-200"
+          className="mb-2 block text-sm font-medium text-slate-700"
         >
           Team B
         </label>
@@ -66,7 +66,7 @@ export default function ScoutingReportFilters({
           value={teamB}
           disabled={!teams.length}
           onChange={(event) => updateMatchup(teamA, event.target.value)}
-          className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-blue-400 disabled:opacity-60"
+          className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
         >
           {teams.map((team) => (
             <option key={team.team_key} value={team.abbreviation}>
@@ -79,7 +79,7 @@ export default function ScoutingReportFilters({
       <button
         type="submit"
         disabled={!teams.length}
-        className="rounded-lg bg-blue-500 px-5 py-3 font-semibold text-white hover:bg-blue-400 disabled:opacity-60"
+        className="rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
       >
         Compare
       </button>

@@ -39,18 +39,18 @@ export default async function ProfilePage() {
       />
 
       <SectionCard>
-        <div className="mb-8 flex items-center gap-4 border-b border-slate-800 pb-6">
+        <div className="mb-8 flex items-center gap-4 border-b border-slate-200 pb-6">
           <div
             aria-label="Avatar placeholder"
-            className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-blue-500 text-lg font-bold text-white"
+            className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-blue-600 text-lg font-bold text-white"
           >
             {initials}
           </div>
           <div className="min-w-0">
-            <p className="truncate text-lg font-semibold text-white">
+            <p className="truncate text-lg font-semibold text-slate-950">
               {fullName || "AXScout member"}
             </p>
-            <p className="truncate text-sm text-slate-400">{user.email}</p>
+            <p className="truncate text-sm text-slate-600">{user.email}</p>
           </div>
         </div>
 

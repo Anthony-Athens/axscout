@@ -11,12 +11,12 @@ import {
 
 function ReportBlockPreview({ block }: { block: ReportBlock }) {
   if (block.type === "paragraph") {
-    return <p className="text-sm leading-6 text-slate-300">{block.text}</p>;
+    return <p className="text-sm leading-6 text-slate-700">{block.text}</p>;
   }
 
   if (block.type === "list") {
     return (
-      <ul className="list-disc space-y-2 pl-5 text-sm leading-6 text-slate-300">
+      <ul className="list-disc space-y-2 pl-5 text-sm leading-6 text-slate-700">
         {block.items.map((item) => (
           <li key={item}>{item}</li>
         ))}
@@ -25,9 +25,9 @@ function ReportBlockPreview({ block }: { block: ReportBlock }) {
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-slate-800">
+    <div className="overflow-x-auto rounded-lg border border-slate-200">
       <table className="min-w-full border-collapse text-left text-sm">
-        <thead className="bg-slate-950/70 text-slate-300">
+        <thead className="bg-slate-50 text-slate-600">
           <tr>
             {block.headers.map((header) => (
               <th key={header} className="whitespace-nowrap px-3 py-2 font-semibold">
@@ -36,13 +36,13 @@ function ReportBlockPreview({ block }: { block: ReportBlock }) {
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-800">
+        <tbody className="divide-y divide-slate-100">
           {block.rows.map((row, rowIndex) => (
             <tr key={`${row.join("-")}-${rowIndex}`}>
               {row.map((cell, cellIndex) => (
                 <td
                   key={`${cell}-${cellIndex}`}
-                  className="whitespace-nowrap px-3 py-2 text-slate-300"
+                  className="whitespace-nowrap px-3 py-2 text-slate-800"
                 >
                   {cell}
                 </td>
@@ -106,50 +106,50 @@ export default function ExportableScoutingReport({
 
   return (
     <section className="mt-8" aria-labelledby="export-report-heading">
-      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-slate-800 pb-5">
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
           <h2
             id="export-report-heading"
-            className="text-xl font-semibold text-white"
+            className="text-xl font-semibold text-slate-900"
           >
             Exportable Scouting Report
           </h2>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-slate-600">
             Deterministic matchup analysis generated from the data above.
           </p>
         </div>
         <button
           type="button"
           onClick={generateReport}
-          className="rounded-lg bg-blue-500 px-5 py-3 font-semibold text-white hover:bg-blue-400"
+          className="rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700"
         >
           Generate Report
         </button>
       </div>
 
       {report && (
-        <div className="mt-6 overflow-hidden rounded-lg border border-slate-800 bg-slate-900">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 bg-slate-950/60 px-5 py-4">
-            <p className="font-semibold text-white">Report Preview</p>
+        <div className="mt-6 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4">
+            <p className="font-semibold text-slate-950">Report Preview</p>
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => copyReport("Markdown", report.markdown)}
-                className="rounded-lg border border-slate-700 px-3 py-2 text-sm font-medium text-slate-200 hover:border-blue-400 hover:text-white"
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-blue-500 hover:text-blue-700"
               >
                 Copy Markdown
               </button>
               <button
                 type="button"
                 onClick={() => copyReport("HTML", report.html)}
-                className="rounded-lg border border-slate-700 px-3 py-2 text-sm font-medium text-slate-200 hover:border-blue-400 hover:text-white"
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-blue-500 hover:text-blue-700"
               >
                 Copy HTML
               </button>
               <button
                 type="button"
                 onClick={() => copyReport("Plain text", report.plainText)}
-                className="rounded-lg border border-slate-700 px-3 py-2 text-sm font-medium text-slate-200 hover:border-blue-400 hover:text-white"
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-blue-500 hover:text-blue-700"
               >
                 Copy Plain Text
               </button>
@@ -157,7 +157,7 @@ export default function ExportableScoutingReport({
           </div>
 
           <article className="px-5 py-6 sm:px-7">
-            <h2 className="text-2xl font-bold text-white">{report.title}</h2>
+            <h2 className="text-2xl font-bold text-slate-950">{report.title}</h2>
             {report.staleWarning && (
               <div
                 role="status"
@@ -167,10 +167,10 @@ export default function ExportableScoutingReport({
               </div>
             )}
 
-            <div className="mt-6 divide-y divide-slate-800">
+            <div className="mt-6 divide-y divide-slate-200">
               {report.sections.map((section) => (
                 <section key={section.heading} className="py-6 first:pt-0">
-                  <h3 className="text-lg font-semibold text-white">
+                  <h3 className="text-lg font-semibold text-slate-900">
                     {section.heading}
                   </h3>
                   <div className="mt-3 space-y-4">
@@ -188,7 +188,7 @@ export default function ExportableScoutingReport({
         </div>
       )}
 
-      <p aria-live="polite" className="mt-3 min-h-5 text-sm text-slate-400">
+      <p aria-live="polite" className="mt-3 min-h-5 text-sm text-slate-600">
         {copyStatus}
       </p>
     </section>

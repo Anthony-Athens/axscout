@@ -10,12 +10,16 @@ export default function SectionCard({
   children,
 }: SectionCardProps) {
   return (
-    <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-6 shadow-sm">
+    <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       {(title || description) && (
         <div className="mb-5">
-          {title && <h2 className="text-xl font-semibold text-white">{title}</h2>}
+          {title && (
+            <h2 className="text-xl font-semibold text-slate-900">{title}</h2>
+          )}
           {description && (
-            <p className="mt-1 text-sm text-slate-400">{description}</p>
+            <p className="mt-1 text-sm leading-6 text-slate-600">
+              {description}
+            </p>
           )}
         </div>
       )}

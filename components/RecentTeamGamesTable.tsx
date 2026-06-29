@@ -33,13 +33,13 @@ export default function RecentTeamGamesTable({
   games: RecentTeamGame[];
 }) {
   if (!games.length) {
-    return <p className="text-sm text-slate-400">No completed games found.</p>;
+    return <p className="text-sm text-slate-600">No completed games found.</p>;
   }
 
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left text-sm">
-        <thead className="border-b border-slate-800 text-slate-400">
+        <thead className="border-b border-slate-200 text-slate-600">
           <tr>
             <th className="py-3 pr-4">Date</th>
             <th className="py-3 pr-4">Opponent</th>
@@ -53,25 +53,25 @@ export default function RecentTeamGamesTable({
         <tbody>
           {games.map((game) => (
             <tr key={game.mlb_game_pk} className="border-b border-slate-900">
-              <td className="py-3 pr-4 text-slate-300">
+              <td className="py-3 pr-4 text-slate-800">
                 {formatGameDate(game.game_date)}
               </td>
-              <td className="py-3 pr-4 font-semibold text-white">
+              <td className="py-3 pr-4 font-semibold text-slate-950">
                 {game.opponent_abbreviation}
               </td>
-              <td className="py-3 pr-4 text-slate-300">
+              <td className="py-3 pr-4 text-slate-800">
                 {game.is_home ? "Home" : "Away"}
               </td>
-              <td className="py-3 pr-4 font-semibold text-slate-200">
+              <td className="py-3 pr-4 font-semibold text-slate-900">
                 {game.wins > game.losses ? "W" : "L"}
               </td>
-              <td className="py-3 pr-4 text-slate-300">
+              <td className="py-3 pr-4 text-slate-800">
                 {game.runs_scored ?? "--"}
               </td>
-              <td className="py-3 pr-4 text-slate-300">
+              <td className="py-3 pr-4 text-slate-800">
                 {game.runs_allowed ?? "--"}
               </td>
-              <td className="py-3 text-slate-300">
+              <td className="py-3 text-slate-800">
                 {formatDifferential(game.run_differential)}
               </td>
             </tr>

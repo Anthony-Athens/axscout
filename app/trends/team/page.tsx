@@ -168,10 +168,10 @@ export default async function TeamTrendsPage({
 
       <section className="mt-8" aria-labelledby="overall-heading">
         <div className="mb-5">
-          <h2 id="overall-heading" className="text-xl font-semibold text-white">
+          <h2 id="overall-heading" className="text-xl font-semibold text-slate-900">
             Overall Summary
           </h2>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-slate-600">
             Season-to-date results and recent 14-game form.
           </p>
         </div>
@@ -207,10 +207,10 @@ export default async function TeamTrendsPage({
 
       <section className="mt-8" aria-labelledby="offense-heading">
         <div className="mb-5">
-          <h2 id="offense-heading" className="text-xl font-semibold text-white">
+          <h2 id="offense-heading" className="text-xl font-semibold text-slate-900">
             Offensive Statistics
           </h2>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-slate-600">
             Latest available weekly batting metrics.
           </p>
         </div>
@@ -231,10 +231,10 @@ export default async function TeamTrendsPage({
 
       <section className="mt-8" aria-labelledby="pitching-heading">
         <div className="mb-5">
-          <h2 id="pitching-heading" className="text-xl font-semibold text-white">
+          <h2 id="pitching-heading" className="text-xl font-semibold text-slate-900">
             Pitching Statistics
           </h2>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-slate-600">
             Latest available weekly pitching metrics.
           </p>
         </div>
@@ -265,10 +265,10 @@ export default async function TeamTrendsPage({
 
       <section className="mt-8" aria-labelledby="offense-trends-heading">
         <div className="mb-5">
-          <h2 id="offense-trends-heading" className="text-xl font-semibold text-white">
+          <h2 id="offense-trends-heading" className="text-xl font-semibold text-slate-900">
             Weekly Offensive Trends
           </h2>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-slate-600">
             Calendar-week movement across the latest available Statcast window.
           </p>
         </div>
@@ -301,10 +301,10 @@ export default async function TeamTrendsPage({
 
       <section className="mt-8" aria-labelledby="pitching-trends-heading">
         <div className="mb-5">
-          <h2 id="pitching-trends-heading" className="text-xl font-semibold text-white">
+          <h2 id="pitching-trends-heading" className="text-xl font-semibold text-slate-900">
             Weekly Pitching Trends
           </h2>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-slate-600">
             Calendar-week pitching volume and pitch-quality movement.
           </p>
         </div>

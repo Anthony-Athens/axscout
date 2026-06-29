@@ -943,11 +943,11 @@ export default async function ScoutingReportPage({
         <div className="mb-5">
           <h2
             id="season-comparison-heading"
-            className="text-xl font-semibold text-white"
+            className="text-xl font-semibold text-slate-900"
           >
             Season Comparison
           </h2>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-slate-600">
             Full season-to-date team results.
           </p>
         </div>
@@ -979,11 +979,11 @@ export default async function ScoutingReportPage({
         <div className="mb-5">
           <h2
             id="rolling-comparison-heading"
-            className="text-xl font-semibold text-white"
+            className="text-xl font-semibold text-slate-900"
           >
             Rolling 14 Comparison
           </h2>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-slate-600">
             Recent results and per-game run production.
           </p>
         </div>
@@ -1030,11 +1030,11 @@ export default async function ScoutingReportPage({
         <div className="mb-5">
           <h2
             id="offense-comparison-heading"
-            className="text-xl font-semibold text-white"
+            className="text-xl font-semibold text-slate-900"
           >
             Offensive Comparison
           </h2>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-slate-600">
             Latest available weekly offense metrics.
           </p>
         </div>
@@ -1076,11 +1076,11 @@ export default async function ScoutingReportPage({
         <div className="mb-5">
           <h2
             id="pitching-comparison-heading"
-            className="text-xl font-semibold text-white"
+            className="text-xl font-semibold text-slate-900"
           >
             Pitching Comparison
           </h2>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-slate-600">
             Latest available weekly pitching metrics.
           </p>
         </div>
@@ -1145,11 +1145,11 @@ export default async function ScoutingReportPage({
         <div className="mb-5">
           <h2
             id="offense-leaders-heading"
-            className="text-xl font-semibold text-white"
+            className="text-xl font-semibold text-slate-900"
           >
             Top Offensive Players
           </h2>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-slate-600">
             OPS leaders with a minimum of 2.5 plate appearances per team game.
           </p>
         </div>
@@ -1173,11 +1173,11 @@ export default async function ScoutingReportPage({
         <div className="mb-5">
           <h2
             id="pitching-leaders-heading"
-            className="text-xl font-semibold text-white"
+            className="text-xl font-semibold text-slate-900"
           >
             Top Pitching Players
           </h2>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-slate-600">
             Strikeout leaders with a minimum of three batters faced per team game.
           </p>
         </div>
@@ -1201,11 +1201,11 @@ export default async function ScoutingReportPage({
         <div className="mb-5">
           <h2
             id="weekly-offense-heading"
-            className="text-xl font-semibold text-white"
+            className="text-xl font-semibold text-slate-900"
           >
             Last Week Offensive Players
           </h2>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-slate-600">
             Hot and cold OPS rankings with at least 10 weekly plate appearances.
           </p>
         </div>
@@ -1249,11 +1249,11 @@ export default async function ScoutingReportPage({
         <div className="mb-5">
           <h2
             id="weekly-pitching-heading"
-            className="text-xl font-semibold text-white"
+            className="text-xl font-semibold text-slate-900"
           >
             Last Week Pitching Players
           </h2>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-slate-600">
             Hot and cold results with at least 10 weekly batters faced.
           </p>
         </div>

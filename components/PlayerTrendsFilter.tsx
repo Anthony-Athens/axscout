@@ -61,7 +61,7 @@ export default function PlayerTrendsFilter({
       <div className="min-w-0">
         <label
           htmlFor="player-search"
-          className="mb-2 block text-sm font-medium text-slate-200"
+          className="mb-2 block text-sm font-medium text-slate-700"
         >
           Search players
         </label>
@@ -71,14 +71,14 @@ export default function PlayerTrendsFilter({
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder="Name, team, position, or MLB ID"
-          className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-500 focus:border-blue-400"
+          className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
         />
       </div>
 
       <div className="min-w-0">
         <label
           htmlFor="player-filter"
-          className="mb-2 block text-sm font-medium text-slate-200"
+          className="mb-2 block text-sm font-medium text-slate-700"
         >
           Player
         </label>
@@ -88,7 +88,7 @@ export default function PlayerTrendsFilter({
           value={visiblePlayerId}
           disabled={!filteredPlayers.length}
           onChange={(event) => viewPlayer(event.target.value)}
-          className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none focus:border-blue-400 disabled:opacity-60"
+          className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60"
         >
           {!filteredPlayers.length && <option value="">No players found</option>}
           {filteredPlayers.length > 0 && !visiblePlayerId && (
@@ -108,7 +108,7 @@ export default function PlayerTrendsFilter({
       <button
         type="submit"
         disabled={!visiblePlayerId}
-        className="rounded-lg bg-blue-500 px-5 py-3 font-semibold text-white hover:bg-blue-400 disabled:opacity-60"
+        className="rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
       >
         View Player
       </button>
