@@ -6,6 +6,7 @@ from scripts.pipelines.build_team_rolling_14_pipeline import (
     main as build_team_rolling_14_pipeline,
 )
 from scripts.config.settings import (
+    ENABLE_ODDS,
     ENABLE_PITCHING_SUMMARY,
     ENABLE_PLAYER_INJURIES,
     ENABLE_PLAYER_ROLLING_7,
@@ -134,6 +135,13 @@ def main() -> None:
         )
     else:
         print("Skipping Official Pitching Summaries (disabled).")
+
+    if ENABLE_ODDS:
+        from scripts.pipelines.load_odds_pipeline import main as load_odds_pipeline
+
+        run_pipeline("Load MLB Odds Snapshots", load_odds_pipeline)
+    else:
+        print("Skipping MLB Odds Snapshots (disabled).")
 
     print("AX Scout daily data refresh complete")
 
