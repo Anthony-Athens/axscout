@@ -8,11 +8,22 @@ type SubmissionState =
   | { status: "success"; message: string }
   | { status: "error"; message: string };
 
+const inquiryTypes = [
+  "Premium beta access",
+  "Bug report",
+  "Feature suggestion",
+  "Collaboration",
+  "Custom analysis request",
+  "Data question",
+  "General message",
+] as const;
+
 const fieldClassName =
   "mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20";
 
 export default function ContactForm() {
   const [submission, setSubmission] = useState<SubmissionState>({ status: "idle" });
+  const [inquiryType, setInquiryType] = useState("");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -21,12 +32,16 @@ export default function ContactForm() {
     const fields = {
       name: String(formData.get("name") ?? "").trim(),
       email: String(formData.get("email") ?? "").trim(),
-      subject: String(formData.get("subject") ?? "").trim(),
+      inquiry_type: String(formData.get("inquiry_type") ?? "").trim(),
+      company_or_organization: String(formData.get("company_or_organization") ?? "").trim(),
+      website_or_social: String(formData.get("website_or_social") ?? "").trim(),
+      related_page: String(formData.get("related_page") ?? "").trim(),
+      preferred_contact_method: String(formData.get("preferred_contact_method") ?? "").trim(),
       message: String(formData.get("message") ?? "").trim(),
-      website: String(formData.get("website") ?? "").trim(),
+      fax_number: String(formData.get("fax_number") ?? "").trim(),
     };
 
-    if (!fields.name || !fields.email || !fields.subject || !fields.message) {
+    if (!fields.name || !fields.email || !fields.inquiry_type || !fields.message) {
       setSubmission({ status: "error", message: "Please complete every required field." });
       return;
     }
@@ -39,21 +54,26 @@ export default function ContactForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(fields),
       });
-      const result = (await response.json()) as { error?: string };
+      const result = (await response.json()) as { error?: string; message?: string };
 
       if (!response.ok) {
-        throw new Error(result.error ?? "Your message could not be sent.");
+        throw new Error(result.error ?? "Something went wrong while sending your message. Please try again.");
       }
 
       form.reset();
+      setInquiryType("");
       setSubmission({
         status: "success",
-        message: "Thanks for reaching out. Your message is on its way to AXScout.",
+        message:
+          result.message ?? "Thanks - your message was sent. I'll review it soon.",
       });
     } catch (error) {
       setSubmission({
         status: "error",
-        message: error instanceof Error ? error.message : "Your message could not be sent.",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Something went wrong while sending your message. Please try again.",
       });
     }
   }
@@ -64,7 +84,7 @@ export default function ContactForm() {
     <form onSubmit={handleSubmit} className="space-y-5">
       <div className="grid gap-5 sm:grid-cols-2">
         <label className="text-sm font-medium text-slate-800">
-          Name
+          Name <span className="text-red-600">*</span>
           <input
             name="name"
             type="text"
@@ -75,7 +95,7 @@ export default function ContactForm() {
           />
         </label>
         <label className="text-sm font-medium text-slate-800">
-          Email
+          Email <span className="text-red-600">*</span>
           <input
             name="email"
             type="email"
@@ -88,40 +108,115 @@ export default function ContactForm() {
       </div>
 
       <label className="block text-sm font-medium text-slate-800">
-        Subject
-        <input name="subject" type="text" maxLength={150} required className={fieldClassName} />
+        Inquiry type <span className="text-red-600">*</span>
+        <select
+          name="inquiry_type"
+          required
+          value={inquiryType}
+          onChange={(event) => setInquiryType(event.target.value)}
+          className={fieldClassName}
+        >
+          <option value="">Choose an inquiry type</option>
+          {inquiryTypes.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
       </label>
 
+      {inquiryType === "Premium beta access" && (
+        <p className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          Premium beta access is manually reviewed while AXScout is in beta.
+        </p>
+      )}
+      {inquiryType === "Bug report" && (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Please include the page URL, what happened, what you expected, and your browser or device when relevant.
+        </p>
+      )}
+
+      <div className="grid gap-5 sm:grid-cols-2">
+        <label className="text-sm font-medium text-slate-800">
+          Company or organization
+          <input
+            name="company_or_organization"
+            type="text"
+            autoComplete="organization"
+            maxLength={150}
+            className={fieldClassName}
+          />
+        </label>
+        <label className="text-sm font-medium text-slate-800">
+          Website or social profile
+          <input
+            name="website_or_social"
+            type="text"
+            inputMode="url"
+            maxLength={300}
+            placeholder="https://"
+            className={fieldClassName}
+          />
+        </label>
+      </div>
+
+      <div className="grid gap-5 sm:grid-cols-2">
+        <label className="text-sm font-medium text-slate-800">
+          Related page
+          <input
+            name="related_page"
+            type="text"
+            maxLength={300}
+            placeholder="Page name or URL"
+            className={fieldClassName}
+          />
+        </label>
+        <label className="text-sm font-medium text-slate-800">
+          Preferred contact method
+          <select name="preferred_contact_method" className={fieldClassName} defaultValue="Email">
+            <option>Email</option>
+            <option>Website or social profile</option>
+            <option>No preference</option>
+          </select>
+        </label>
+      </div>
+
       <label className="block text-sm font-medium text-slate-800">
-        Message
+        Message <span className="text-red-600">*</span>
         <textarea
           name="message"
-          rows={7}
+          rows={8}
+          minLength={10}
           maxLength={5000}
           required
           className={fieldClassName}
           placeholder="Tell us what you are exploring, what went wrong, or how you would like to collaborate."
         />
+        <span className="mt-2 block text-xs leading-5 text-slate-500">
+          Include enough context for us to understand and respond to your request.
+        </span>
       </label>
 
-      <label className="hidden" aria-hidden="true">
-        Website
-        <input name="website" type="text" tabIndex={-1} autoComplete="off" />
-      </label>
+      <div className="absolute -left-[10000px] h-px w-px overflow-hidden" aria-hidden="true">
+        <label>
+          Fax number
+          <input name="fax_number" type="text" tabIndex={-1} autoComplete="off" />
+        </label>
+      </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <button
           type="submit"
           disabled={isSubmitting}
-          className="rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isSubmitting ? "Sending..." : "Send Message"}
+          {isSubmitting ? "Sending..." : "Send Inquiry"}
         </button>
-        <p className="text-sm text-slate-500">We will use your email only to respond to this request.</p>
+        <p className="text-sm text-slate-500">Your email is used only to respond to this inquiry.</p>
       </div>
 
       {submission.status === "success" && (
-        <p role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        <p role="status" aria-live="polite" className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
           {submission.message}
         </p>
       )}
