@@ -7,6 +7,7 @@ from scripts.pipelines.build_team_rolling_14_pipeline import (
 )
 from scripts.config.settings import (
     ENABLE_ODDS,
+    ENABLE_PREDICTION_TRACKING,
     ENABLE_PREDICTIONS,
     ENABLE_PITCHING_SUMMARY,
     ENABLE_PLAYER_INJURIES,
@@ -152,6 +153,15 @@ def main() -> None:
         run_pipeline("Build Rules-Based Predictions", build_predictions_pipeline)
     else:
         print("Skipping Rules-Based Predictions (disabled).")
+
+    if ENABLE_PREDICTION_TRACKING:
+        from scripts.pipelines.score_predictions_pipeline import (
+            main as score_predictions_pipeline,
+        )
+
+        run_pipeline("Score Completed Predictions", score_predictions_pipeline)
+    else:
+        print("Skipping Prediction Tracking (disabled).")
 
     print("AX Scout daily data refresh complete")
 

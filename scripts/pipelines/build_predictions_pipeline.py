@@ -15,10 +15,10 @@ PIPELINE_NAME = "build_predictions"
 
 
 def _upcoming_games(today: str) -> list[dict]:
-    return (
+    rows = (
         supabase.table("fact_games")
         .select(
-            "mlb_game_pk,game_date,home_team_key,away_team_key,"
+            "mlb_game_pk,game_date,status,home_team_key,away_team_key,"
             "home_probable_pitcher_mlb_id,away_probable_pitcher_mlb_id"
         )
         .gte("game_date", today)
@@ -29,6 +29,12 @@ def _upcoming_games(today: str) -> list[dict]:
         .data
         or []
     )
+    return [
+        row
+        for row in rows
+        if (row.get("status") or "").strip().lower()
+        not in {"final", "game over"}
+    ]
 
 
 def _active_injuries() -> list[dict]:

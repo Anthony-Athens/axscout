@@ -86,8 +86,9 @@ being stronger than the market on that team. Otherwise the result is
   not included.
 - The latest sportsbook is selected deterministically; a consensus market is a
   future improvement.
-- Predictions are updated in place for the active model version, so a separate
-  immutable history table may be useful for formal backtesting.
+- Predictions are updated in place before game completion. Final outcomes and
+  the prediction fields used for evaluation are preserved in
+  `prediction_results` by model name and version.
 
 ## Future ML path
 

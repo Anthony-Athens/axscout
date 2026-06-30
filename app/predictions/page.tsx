@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 
 import PageHeader from "@/components/layout/PageHeader";
+import DashboardGrid from "@/components/ui/DashboardGrid";
 import SectionCard from "@/components/ui/SectionCard";
+import StatCard from "@/components/ui/StatCard";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -44,6 +46,22 @@ type OddsTimeRow = {
   snapshot_at: string;
 };
 
+type PredictionResultRow = {
+  mlb_game_pk: number;
+  game_date: string;
+  home_team: string;
+  away_team: string;
+  actual_winner: string | null;
+  predicted_winner: string | null;
+  prediction_correct: boolean | null;
+  confidence: "Low" | "Medium" | "High" | null;
+  model_name: string;
+  model_version: string;
+  scored_at: string;
+};
+
+type Supabase = Awaited<ReturnType<typeof createClient>>;
+
 const roadmap = [
   {
     title: "Game Win Probability",
@@ -78,8 +96,8 @@ const roadmap = [
   {
     title: "Prediction History",
     description:
-      "Auditable forecasts with accuracy, calibration, and performance tracking.",
-    status: "Planned",
+      "Completed forecasts are scored by model version with confidence-level accuracy.",
+    status: "Tracking live",
   },
 ];
 
@@ -148,19 +166,68 @@ function predictedProbability(prediction: PredictionRow) {
     : prediction.away_win_probability;
 }
 
+function formatAccuracy(rows: PredictionResultRow[]) {
+  if (!rows.length) {
+    return "--";
+  }
+  const correct = rows.filter((row) => row.prediction_correct).length;
+  return `${Math.round((correct / rows.length) * 100)}%`;
+}
+
+function formatGameDate(value: string | undefined) {
+  if (!value) {
+    return "--";
+  }
+  const date = new Date(`${value}T12:00:00`);
+  return Number.isNaN(date.getTime())
+    ? value
+    : new Intl.DateTimeFormat("en-US", {
+        dateStyle: "medium",
+      }).format(date);
+}
+
+async function getPredictionResults(supabase: Supabase) {
+  const rows: PredictionResultRow[] = [];
+  const pageSize = 1000;
+  let offset = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from("prediction_results")
+      .select(
+        "mlb_game_pk, game_date, home_team, away_team, actual_winner, predicted_winner, prediction_correct, confidence, model_name, model_version, scored_at"
+      )
+      .order("scored_at", { ascending: false })
+      .order("mlb_game_pk", { ascending: false })
+      .range(offset, offset + pageSize - 1);
+
+    if (error || !data) {
+      return rows;
+    }
+    rows.push(...(data as PredictionResultRow[]));
+    if (data.length < pageSize) {
+      return rows;
+    }
+    offset += pageSize;
+  }
+}
+
 export default async function PredictionsPage() {
   const supabase = await createClient();
   const today = new Date().toISOString().slice(0, 10);
-  const { data: predictionData } = await supabase
-    .from("game_predictions")
-    .select(
-      "mlb_game_pk, game_date, home_team, away_team, predicted_winner, home_win_probability, away_win_probability, confidence, axscout_lean, market_sportsbook, market_home_moneyline, market_away_moneyline, edge_summary, explanation, model_version, prediction_status"
-    )
-    .gte("game_date", today)
-    .eq("model_name", "rules_based_v1")
-    .order("game_date")
-    .order("mlb_game_pk")
-    .limit(100);
+  const [{ data: predictionData }, predictionResults] = await Promise.all([
+    supabase
+      .from("game_predictions")
+      .select(
+        "mlb_game_pk, game_date, home_team, away_team, predicted_winner, home_win_probability, away_win_probability, confidence, axscout_lean, market_sportsbook, market_home_moneyline, market_away_moneyline, edge_summary, explanation, model_version, prediction_status"
+      )
+      .gte("game_date", today)
+      .eq("model_name", "rules_based_v1")
+      .order("game_date")
+      .order("mlb_game_pk")
+      .limit(100),
+    getPredictionResults(supabase),
+  ]);
 
   const predictions = (predictionData ?? []) as PredictionRow[];
   const gameIds = predictions.map((prediction) => prediction.mlb_game_pk);
@@ -197,6 +264,21 @@ export default async function PredictionsPage() {
       timesByPk.set(row.mlb_game_pk, row.commence_time);
     }
   }
+  const highConfidenceResults = predictionResults.filter(
+    (result) => result.confidence === "High"
+  );
+  const rulesV1Results = predictionResults.filter(
+    (result) => result.model_name === "rules_based_v1"
+  );
+  const confidenceGroups = (["Low", "Medium", "High"] as const).map(
+    (confidence) => {
+      const rows = predictionResults.filter(
+        (result) => result.confidence === confidence
+      );
+      return { confidence, rows };
+    }
+  );
+  const recentResults = predictionResults.slice(0, 10);
 
   return (
     <div className="space-y-8">
@@ -330,6 +412,155 @@ export default async function PredictionsPage() {
             <p className="mt-2 text-sm text-slate-600">
               Check back soon as the rules-based prediction pipeline processes
               the next slate of MLB games.
+            </p>
+          </div>
+        )}
+      </section>
+
+      <section aria-labelledby="performance-heading">
+        <div className="mb-5">
+          <h2
+            id="performance-heading"
+            className="text-xl font-semibold text-slate-900"
+          >
+            Prediction Performance
+          </h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Completed games scored against the forecast stored for each model
+            version.
+          </p>
+        </div>
+
+        {predictionResults.length ? (
+          <div className="space-y-5">
+            <DashboardGrid>
+              <StatCard
+                label="Predictions Scored"
+                value={predictionResults.length}
+                helperText="All tracked model versions"
+              />
+              <StatCard
+                label="Overall Accuracy"
+                value={formatAccuracy(predictionResults)}
+                helperText={`Rules v1: ${formatAccuracy(rulesV1Results)}`}
+              />
+              <StatCard
+                label="High Confidence Accuracy"
+                value={formatAccuracy(highConfidenceResults)}
+                helperText={`${highConfidenceResults.length} scored games`}
+              />
+              <StatCard
+                label="Last Scored Game"
+                value={formatGameDate(predictionResults[0]?.game_date)}
+                helperText="Latest completed prediction"
+              />
+            </DashboardGrid>
+
+            <SectionCard
+              title="Accuracy by Confidence"
+              description="Performance grouped by the confidence assigned before the game."
+            >
+              <div className="grid gap-4 sm:grid-cols-3">
+                {confidenceGroups.map(({ confidence, rows }) => (
+                  <div
+                    key={confidence}
+                    className="border-b border-slate-200 py-3 sm:border-b-0 sm:border-r sm:pr-4 last:border-0"
+                  >
+                    <p className="text-sm font-medium text-slate-500">
+                      {confidence}
+                    </p>
+                    <p className="mt-1 text-2xl font-bold text-slate-950">
+                      {formatAccuracy(rows)}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {rows.length} scored games
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </SectionCard>
+
+            <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+              <div className="border-b border-slate-200 px-5 py-4">
+                <h3 className="font-semibold text-slate-900">
+                  Recent Prediction Results
+                </h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-[850px] border-collapse text-left text-sm">
+                  <thead className="border-b border-slate-200 bg-slate-50 text-slate-600">
+                    <tr>
+                      {[
+                        "Date",
+                        "Game",
+                        "Predicted Winner",
+                        "Actual Winner",
+                        "Result",
+                        "Confidence",
+                        "Model",
+                      ].map((column) => (
+                        <th
+                          key={column}
+                          scope="col"
+                          className="whitespace-nowrap px-4 py-3 font-semibold"
+                        >
+                          {column}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {recentResults.map((result) => (
+                      <tr
+                        key={`${result.mlb_game_pk}-${result.model_name}-${result.model_version}`}
+                      >
+                        <td className="whitespace-nowrap px-4 py-3 text-slate-700">
+                          {formatGameDate(result.game_date)}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 font-medium text-slate-950">
+                          {result.away_team} at {result.home_team}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-slate-700">
+                          {result.predicted_winner ?? "--"}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-slate-700">
+                          {result.actual_winner ?? "--"}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3">
+                          <span
+                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                              result.prediction_correct
+                                ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+                                : "bg-rose-50 text-rose-700 ring-1 ring-rose-200"
+                            }`}
+                          >
+                            {result.prediction_correct
+                              ? "Correct"
+                              : "Incorrect"}
+                          </span>
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-slate-700">
+                          {result.confidence ?? "--"}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                          {result.model_name} v{result.model_version}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm">
+            <h3 className="font-semibold text-slate-900">
+              Prediction tracking will populate after games with
+              AXScout-generated predictions are completed.
+            </h3>
+            <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+              Completed historical games are intentionally not scored unless a
+              prediction existed before first pitch, to avoid look-ahead bias.
             </p>
           </div>
         )}
