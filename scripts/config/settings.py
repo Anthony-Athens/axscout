@@ -23,12 +23,22 @@ ENABLE_TEAM_WEEKLY_STATCAST = (
     os.getenv("ENABLE_TEAM_WEEKLY_STATCAST", "false").strip().lower()
     in {"1", "true", "yes", "on"}
 )
+ENABLE_TEAM_OFFENSE_SEASON = (
+    os.getenv("ENABLE_TEAM_OFFENSE_SEASON", "false").strip().lower()
+    in {"1", "true", "yes", "on"}
+)
 
 PLAYER_STATCAST_LOOKBACK_DAYS = int(
     os.getenv("PLAYER_STATCAST_LOOKBACK_DAYS", "30")
 )
 ENABLE_PLAYER_STATCAST = (
     os.getenv("ENABLE_PLAYER_STATCAST", "false").strip().lower()
+    in {"1", "true", "yes", "on"}
+)
+ROLLING_7_START_DATE = os.getenv("ROLLING_7_START_DATE", "").strip() or None
+ROLLING_7_END_DATE = os.getenv("ROLLING_7_END_DATE", "").strip() or None
+ENABLE_PLAYER_ROLLING_7 = (
+    os.getenv("ENABLE_PLAYER_ROLLING_7", "true").strip().lower()
     in {"1", "true", "yes", "on"}
 )
 

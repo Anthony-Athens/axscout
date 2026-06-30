@@ -408,6 +408,19 @@ def build_team_pitching_season_rows(data: pd.DataFrame) -> list[dict]:
     return _to_records(rows)
 
 
+def build_team_offense_season_statcast_rows(
+    statcast_data: pd.DataFrame,
+) -> list[dict]:
+    data = _prepare_data(statcast_data)
+    if data.empty:
+        print("No Statcast rows available for team offense season aggregation.")
+        return []
+
+    rows = build_team_offense_season_rows(data)
+    print(f"Built {len(rows)} team offense season rows.")
+    return rows
+
+
 def build_team_season_statcast_rows(
     statcast_data: pd.DataFrame,
 ) -> tuple[list[dict], list[dict]]:

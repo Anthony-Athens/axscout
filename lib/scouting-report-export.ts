@@ -3,6 +3,7 @@ export type ReportPlayer = {
   fullName: string;
   ops?: number | null;
   battingAverage?: number | null;
+  plateAppearances?: number | null;
   homeRuns?: number | null;
   avgExitVelocity?: number | null;
   era?: number | null;
@@ -103,6 +104,11 @@ function formatInteger(value: number | null | undefined) {
 
 function formatPitchingRate(value: number | null | undefined) {
   return value === null || value === undefined ? "--" : value.toFixed(2);
+}
+
+function formatBaseballRate(value: number | null | undefined) {
+  const formatted = formatNumber(value, 3);
+  return formatted.startsWith("0.") ? formatted.slice(1) : formatted;
 }
 
 function formatDifferential(value: number | null | undefined, digits = 0) {
@@ -220,7 +226,7 @@ function playerRows(
     team.abbreviation,
     player.fullName,
     kind === "offense"
-      ? `OPS ${formatNumber(player.ops, 3)}, AVG ${formatNumber(player.battingAverage, 3)}, HR ${formatInteger(player.homeRuns)}, EV ${formatNumber(player.avgExitVelocity, 1)} mph`
+      ? `OPS ${formatBaseballRate(player.ops)}, AVG ${formatBaseballRate(player.battingAverage)}, HR ${formatInteger(player.homeRuns)}, EV ${formatNumber(player.avgExitVelocity, 1)} mph, PA ${formatInteger(player.plateAppearances)}`
       : `ERA ${formatPitchingRate(player.era)}, WHIP ${formatPitchingRate(player.whip)}, K ${formatInteger(player.strikeouts)}, H ${formatInteger(player.hitsAllowed)}, BB ${formatInteger(player.walks)}, HR ${formatInteger(player.homeRunsAllowed)}`,
   ]);
 }
@@ -480,7 +486,7 @@ export function buildScoutingReport(
         ? `${team.side} (${team.abbreviation}): ${offensePlayer.fullName}, highlighted by an OPS of ${formatNumber(offensePlayer.ops, 3)}.`
         : null,
       pitchingPlayer
-        ? `${team.side} (${team.abbreviation}): ${pitchingPlayer.fullName}, highlighted by ${pitchingWatchSummary(pitchingPlayer)} in the available period.`
+        ? `${team.side} (${team.abbreviation}): ${pitchingPlayer.fullName}, highlighted by ${pitchingWatchSummary(pitchingPlayer)} in the last 7 days.`
         : null,
     ].filter((item): item is string => Boolean(item));
   });
@@ -610,11 +616,11 @@ export function buildScoutingReport(
       ],
     },
     {
-      heading: "Hot Offensive Players",
+      heading: "Hot Offensive Players - Last 7 Days",
       blocks: [
         {
           type: "table",
-          headers: ["Side", "Team", "Player", "Latest Week"],
+          headers: ["Side", "Team", "Player", "Last 7 Days"],
           rows: [
             ...playerRows(teamA, teamA.hotOffense, "offense"),
             ...playerRows(teamB, teamB.hotOffense, "offense"),
@@ -623,11 +629,11 @@ export function buildScoutingReport(
       ],
     },
     {
-      heading: "Cold Offensive Players",
+      heading: "Cold Offensive Players - Last 7 Days",
       blocks: [
         {
           type: "table",
-          headers: ["Side", "Team", "Player", "Latest Week"],
+          headers: ["Side", "Team", "Player", "Last 7 Days"],
           rows: [
             ...playerRows(teamA, teamA.coldOffense, "offense"),
             ...playerRows(teamB, teamB.coldOffense, "offense"),
@@ -636,11 +642,11 @@ export function buildScoutingReport(
       ],
     },
     {
-      heading: "Hot Pitching Players",
+      heading: "Hot Pitching Players - Last 7 Days",
       blocks: [
         {
           type: "table",
-          headers: ["Side", "Team", "Player", "Latest Week"],
+          headers: ["Side", "Team", "Player", "Last 7 Days"],
           rows: [
             ...playerRows(teamA, teamA.hotPitching, "pitching"),
             ...playerRows(teamB, teamB.hotPitching, "pitching"),
@@ -649,11 +655,11 @@ export function buildScoutingReport(
       ],
     },
     {
-      heading: "Cold Pitching Players",
+      heading: "Cold Pitching Players - Last 7 Days",
       blocks: [
         {
           type: "table",
-          headers: ["Side", "Team", "Player", "Latest Week"],
+          headers: ["Side", "Team", "Player", "Last 7 Days"],
           rows: [
             ...playerRows(teamA, teamA.coldPitching, "pitching"),
             ...playerRows(teamB, teamB.coldPitching, "pitching"),

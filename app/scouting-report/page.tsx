@@ -32,8 +32,8 @@ export const metadata: Metadata = {
 
 const DEFAULT_TEAM_A = "PIT";
 const DEFAULT_TEAM_B = "CHC";
-const MIN_WEEKLY_PLATE_APPEARANCES = 10;
-const MIN_WEEKLY_BATTERS_FACED = 10;
+const MIN_ROLLING_7_PLATE_APPEARANCES = 10;
+const MIN_ROLLING_7_BATTERS_FACED = 10;
 
 type SeasonMetrics = {
   season: number;
@@ -94,18 +94,21 @@ type PitchingPlayerRow = {
   avg_spin_rate: number | null;
 };
 
-type WeeklyOffensePlayerRow = {
-  week_start_date: string;
+type RollingOffensePlayerRow = {
+  window_start_date: string;
+  window_end_date: string;
   mlb_player_id: number;
   plate_appearances: number | null;
   batting_average: number | null;
   ops: number | null;
   home_runs: number | null;
+  strikeouts: number | null;
   avg_exit_velocity: number | null;
 };
 
-type WeeklyPitchingPlayerRow = {
-  week_start_date: string;
+type RollingPitchingPlayerRow = {
+  window_start_date: string;
+  window_end_date: string;
   mlb_player_id: number;
   batters_faced: number | null;
   strikeouts: number | null;
@@ -138,6 +141,11 @@ type MatchupGameRow = {
 
 function formatDecimal(value: number | null | undefined, digits = 2) {
   return value === null || value === undefined ? "--" : value.toFixed(digits);
+}
+
+function formatBaseballRate(value: number | null | undefined) {
+  const formatted = formatDecimal(value, 3);
+  return formatted.startsWith("0.") ? formatted.slice(1) : formatted;
 }
 
 function formatInteger(value: number | null | undefined) {
@@ -183,9 +191,33 @@ function bestPitchingSort(
   );
 }
 
+function hotOffenseSort(
+  playerA: RollingOffensePlayerRow,
+  playerB: RollingOffensePlayerRow
+) {
+  return (
+    compareNullableNumber(playerA.ops, playerB.ops, "descending") ||
+    compareNullableNumber(
+      playerA.avg_exit_velocity,
+      playerB.avg_exit_velocity,
+      "descending"
+    )
+  );
+}
+
+function coldOffenseSort(
+  playerA: RollingOffensePlayerRow,
+  playerB: RollingOffensePlayerRow
+) {
+  return (
+    compareNullableNumber(playerA.ops, playerB.ops, "ascending") ||
+    (playerB.strikeouts ?? 0) - (playerA.strikeouts ?? 0)
+  );
+}
+
 function coldPitchingSort(
-  playerA: WeeklyPitchingPlayerRow,
-  playerB: WeeklyPitchingPlayerRow
+  playerA: RollingPitchingPlayerRow,
+  playerB: RollingPitchingPlayerRow
 ) {
   return (
     compareNullableNumber(playerA.era, playerB.era, "descending") ||
@@ -201,6 +233,45 @@ function coldPitchingSort(
       "descending"
     )
   );
+}
+
+function hotPitchingFallbackSort(
+  playerA: RollingPitchingPlayerRow,
+  playerB: RollingPitchingPlayerRow
+) {
+  return (
+    compareNullableNumber(playerA.whip, playerB.whip, "ascending") ||
+    compareNullableNumber(
+      playerA.hits_allowed,
+      playerB.hits_allowed,
+      "ascending"
+    ) ||
+    (playerB.strikeouts ?? 0) - (playerA.strikeouts ?? 0)
+  );
+}
+
+function coldPitchingFallbackSort(
+  playerA: RollingPitchingPlayerRow,
+  playerB: RollingPitchingPlayerRow
+) {
+  return (
+    compareNullableNumber(playerA.whip, playerB.whip, "descending") ||
+    compareNullableNumber(
+      playerA.hits_allowed,
+      playerB.hits_allowed,
+      "descending"
+    ) ||
+    compareNullableNumber(
+      playerA.home_runs_allowed,
+      playerB.home_runs_allowed,
+      "descending"
+    )
+  );
+}
+
+function hasEnoughEra(rows: RollingPitchingPlayerRow[]) {
+  const required = Math.min(3, rows.length);
+  return required > 0 && rows.filter((row) => row.era !== null).length >= required;
 }
 
 function isoDateWithOffset(days: number) {
@@ -230,11 +301,11 @@ function latestSeasonRows<T extends { season: number }>(rows: T[]): T[] {
     : rows.filter((row) => row.season === latestSeason);
 }
 
-function latestWeekRows<T extends { week_start_date: string }>(rows: T[]): T[] {
-  const latestWeek = rows[0]?.week_start_date;
-  return latestWeek === undefined
+function latestRollingRows<T extends { window_end_date: string }>(rows: T[]): T[] {
+  const latestWindow = rows[0]?.window_end_date;
+  return latestWindow === undefined
     ? []
-    : rows.filter((row) => row.week_start_date === latestWeek);
+    : rows.filter((row) => row.window_end_date === latestWindow);
 }
 
 function seasonSnapshotSections(
@@ -324,17 +395,22 @@ function qualificationMinimum(
     : Number.POSITIVE_INFINITY;
 }
 
-function formatWeek(value: string | undefined) {
-  if (!value) {
-    return "Latest available week";
+function formatRollingWindow(
+  startValue: string | undefined,
+  endValue: string | undefined
+) {
+  if (!startValue || !endValue) {
+    return "Latest rolling 7-day window";
   }
 
-  const date = new Intl.DateTimeFormat("en-US", {
+  const formatter = new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
     timeZone: "UTC",
-  }).format(new Date(`${value}T00:00:00Z`));
-  return `Week of ${date}`;
+  });
+  const start = formatter.format(new Date(`${startValue}T00:00:00Z`));
+  const end = formatter.format(new Date(`${endValue}T00:00:00Z`));
+  return `${start} - ${end}`;
 }
 
 export default async function ScoutingReportPage({
@@ -397,10 +473,10 @@ export default async function ScoutingReportPage({
     offensePlayersBResult,
     pitchingPlayersAResult,
     pitchingPlayersBResult,
-    weeklyOffensePlayersAResult,
-    weeklyOffensePlayersBResult,
-    weeklyPitchingPlayersAResult,
-    weeklyPitchingPlayersBResult,
+    rollingOffensePlayersAResult,
+    rollingOffensePlayersBResult,
+    rollingPitchingPlayersAResult,
+    rollingPitchingPlayersBResult,
     upcomingGamesResult,
     latestRefreshResult,
   ] = await Promise.all([
@@ -517,40 +593,40 @@ export default async function ScoutingReportPage({
       .order("era", { ascending: true, nullsFirst: false })
       .limit(50),
     supabase
-      .from("agg_player_offense_weekly")
+      .from("agg_player_offense_rolling_7")
       .select(
-        "week_start_date, mlb_player_id, plate_appearances, batting_average, ops, home_runs, avg_exit_velocity"
+        "window_start_date, window_end_date, mlb_player_id, plate_appearances, batting_average, ops, home_runs, strikeouts, avg_exit_velocity"
       )
       .eq("team_abbreviation", abbreviationA)
       .not("mlb_player_id", "is", null)
-      .order("week_start_date", { ascending: false })
+      .order("window_end_date", { ascending: false })
       .limit(200),
     supabase
-      .from("agg_player_offense_weekly")
+      .from("agg_player_offense_rolling_7")
       .select(
-        "week_start_date, mlb_player_id, plate_appearances, batting_average, ops, home_runs, avg_exit_velocity"
+        "window_start_date, window_end_date, mlb_player_id, plate_appearances, batting_average, ops, home_runs, strikeouts, avg_exit_velocity"
       )
       .eq("team_abbreviation", abbreviationB)
       .not("mlb_player_id", "is", null)
-      .order("week_start_date", { ascending: false })
+      .order("window_end_date", { ascending: false })
       .limit(200),
     supabase
-      .from("agg_player_pitching_weekly")
+      .from("agg_player_pitching_rolling_7")
       .select(
-        "week_start_date, mlb_player_id, batters_faced, strikeouts, walks, hits_allowed, home_runs_allowed, era, whip, avg_pitch_speed, avg_spin_rate"
+        "window_start_date, window_end_date, mlb_player_id, batters_faced, strikeouts, walks, hits_allowed, home_runs_allowed, era, whip, avg_pitch_speed, avg_spin_rate"
       )
       .eq("team_abbreviation", abbreviationA)
       .not("mlb_player_id", "is", null)
-      .order("week_start_date", { ascending: false })
+      .order("window_end_date", { ascending: false })
       .limit(200),
     supabase
-      .from("agg_player_pitching_weekly")
+      .from("agg_player_pitching_rolling_7")
       .select(
-        "week_start_date, mlb_player_id, batters_faced, strikeouts, walks, hits_allowed, home_runs_allowed, era, whip, avg_pitch_speed, avg_spin_rate"
+        "window_start_date, window_end_date, mlb_player_id, batters_faced, strikeouts, walks, hits_allowed, home_runs_allowed, era, whip, avg_pitch_speed, avg_spin_rate"
       )
       .eq("team_abbreviation", abbreviationB)
       .not("mlb_player_id", "is", null)
-      .order("week_start_date", { ascending: false })
+      .order("window_end_date", { ascending: false })
       .limit(200),
     supabase
       .from("fact_games")
@@ -669,59 +745,73 @@ export default async function ScoutingReportPage({
     )
     .sort(bestPitchingSort)
     .slice(0, 3);
-  const latestOffenseWeekA = latestWeekRows(
-    (weeklyOffensePlayersAResult.data ?? []) as WeeklyOffensePlayerRow[]
+  const latestOffenseWindowA = latestRollingRows(
+    (rollingOffensePlayersAResult.data ?? []) as RollingOffensePlayerRow[]
   );
-  const latestOffenseWeekB = latestWeekRows(
-    (weeklyOffensePlayersBResult.data ?? []) as WeeklyOffensePlayerRow[]
+  const latestOffenseWindowB = latestRollingRows(
+    (rollingOffensePlayersBResult.data ?? []) as RollingOffensePlayerRow[]
   );
-  const qualifiedWeeklyOffenseA = latestOffenseWeekA.filter(
+  const qualifiedRollingOffenseA = latestOffenseWindowA.filter(
     (player) =>
-      player.ops !== null &&
-      (player.plate_appearances ?? 0) >= MIN_WEEKLY_PLATE_APPEARANCES
+      (player.plate_appearances ?? 0) >= MIN_ROLLING_7_PLATE_APPEARANCES
   );
-  const qualifiedWeeklyOffenseB = latestOffenseWeekB.filter(
+  const qualifiedRollingOffenseB = latestOffenseWindowB.filter(
     (player) =>
-      player.ops !== null &&
-      (player.plate_appearances ?? 0) >= MIN_WEEKLY_PLATE_APPEARANCES
+      (player.plate_appearances ?? 0) >= MIN_ROLLING_7_PLATE_APPEARANCES
   );
-  const hotOffenseA = [...qualifiedWeeklyOffenseA]
-    .sort((playerA, playerB) => (playerB.ops ?? 0) - (playerA.ops ?? 0))
+  const hotOffenseA = [...qualifiedRollingOffenseA]
+    .sort(hotOffenseSort)
     .slice(0, 3);
-  const hotOffenseB = [...qualifiedWeeklyOffenseB]
-    .sort((playerA, playerB) => (playerB.ops ?? 0) - (playerA.ops ?? 0))
+  const hotOffenseB = [...qualifiedRollingOffenseB]
+    .sort(hotOffenseSort)
     .slice(0, 3);
-  const coldOffenseA = [...qualifiedWeeklyOffenseA]
-    .sort((playerA, playerB) => (playerA.ops ?? 0) - (playerB.ops ?? 0))
+  const coldOffenseA = [...qualifiedRollingOffenseA]
+    .sort(coldOffenseSort)
     .slice(0, 3);
-  const coldOffenseB = [...qualifiedWeeklyOffenseB]
-    .sort((playerA, playerB) => (playerA.ops ?? 0) - (playerB.ops ?? 0))
+  const coldOffenseB = [...qualifiedRollingOffenseB]
+    .sort(coldOffenseSort)
     .slice(0, 3);
-  const latestPitchingWeekA = latestWeekRows(
-    (weeklyPitchingPlayersAResult.data ?? []) as WeeklyPitchingPlayerRow[]
+  const latestPitchingWindowA = latestRollingRows(
+    (rollingPitchingPlayersAResult.data ?? []) as RollingPitchingPlayerRow[]
   );
-  const latestPitchingWeekB = latestWeekRows(
-    (weeklyPitchingPlayersBResult.data ?? []) as WeeklyPitchingPlayerRow[]
+  const latestPitchingWindowB = latestRollingRows(
+    (rollingPitchingPlayersBResult.data ?? []) as RollingPitchingPlayerRow[]
   );
-  const qualifiedWeeklyPitchingA = latestPitchingWeekA.filter(
+  const qualifiedRollingPitchingA = latestPitchingWindowA.filter(
     (player) =>
-      (player.batters_faced ?? 0) >= MIN_WEEKLY_BATTERS_FACED
+      (player.batters_faced ?? 0) >= MIN_ROLLING_7_BATTERS_FACED
   );
-  const qualifiedWeeklyPitchingB = latestPitchingWeekB.filter(
+  const qualifiedRollingPitchingB = latestPitchingWindowB.filter(
     (player) =>
-      (player.batters_faced ?? 0) >= MIN_WEEKLY_BATTERS_FACED
+      (player.batters_faced ?? 0) >= MIN_ROLLING_7_BATTERS_FACED
   );
-  const hotPitchingA = [...qualifiedWeeklyPitchingA]
-    .sort(bestPitchingSort)
+  const hotPitchingA = [...qualifiedRollingPitchingA]
+    .sort(
+      hasEnoughEra(qualifiedRollingPitchingA)
+        ? bestPitchingSort
+        : hotPitchingFallbackSort
+    )
     .slice(0, 3);
-  const hotPitchingB = [...qualifiedWeeklyPitchingB]
-    .sort(bestPitchingSort)
+  const hotPitchingB = [...qualifiedRollingPitchingB]
+    .sort(
+      hasEnoughEra(qualifiedRollingPitchingB)
+        ? bestPitchingSort
+        : hotPitchingFallbackSort
+    )
     .slice(0, 3);
-  const coldPitchingA = [...qualifiedWeeklyPitchingA]
-    .sort(coldPitchingSort)
+  const coldPitchingA = [...qualifiedRollingPitchingA]
+    .sort(
+      hasEnoughEra(qualifiedRollingPitchingA)
+        ? coldPitchingSort
+        : coldPitchingFallbackSort
+    )
     .slice(0, 3);
-  const coldPitchingB = [...qualifiedWeeklyPitchingB]
-    .sort(coldPitchingSort)
+  const coldPitchingB = [...qualifiedRollingPitchingB]
+    .sort(
+      hasEnoughEra(qualifiedRollingPitchingB)
+        ? coldPitchingSort
+        : coldPitchingFallbackSort
+    )
     .slice(0, 3);
   const playerIds = [
     ...offensePlayersA,
@@ -854,27 +944,28 @@ export default async function ScoutingReportPage({
         },
       ],
     }));
-  const weeklyOffenseLeaders = (
-    rows: WeeklyOffensePlayerRow[]
+  const rollingOffenseLeaders = (
+    rows: RollingOffensePlayerRow[]
   ): LeaderboardPlayer[] =>
     rows.map((player) => ({
       mlb_player_id: player.mlb_player_id,
       full_name: playerName(player.mlb_player_id),
       metrics: [
-        { label: "OPS", value: formatDecimal(player.ops, 3) },
-        { label: "AVG", value: formatDecimal(player.batting_average, 3) },
+        { label: "OPS", value: formatBaseballRate(player.ops) },
+        { label: "AVG", value: formatBaseballRate(player.batting_average) },
         { label: "HR", value: player.home_runs ?? "--" },
+        { label: "PA", value: player.plate_appearances ?? "--" },
         {
           label: "Avg EV",
           value:
             player.avg_exit_velocity === null
               ? "--"
-              : `${formatDecimal(player.avg_exit_velocity)} mph`,
+              : `${formatDecimal(player.avg_exit_velocity, 1)} mph`,
         },
       ],
     }));
-  const weeklyPitchingLeaders = (
-    rows: WeeklyPitchingPlayerRow[]
+  const rollingPitchingLeaders = (
+    rows: RollingPitchingPlayerRow[]
   ): LeaderboardPlayer[] =>
     rows.map((player) => ({
       mlb_player_id: player.mlb_player_id,
@@ -886,24 +977,10 @@ export default async function ScoutingReportPage({
         { label: "H", value: player.hits_allowed ?? "--" },
         { label: "BB", value: player.walks ?? "--" },
         { label: "HR", value: player.home_runs_allowed ?? "--" },
-        {
-          label: "Avg Velo",
-          value:
-            player.avg_pitch_speed === null
-              ? "--"
-              : `${formatDecimal(player.avg_pitch_speed)} mph`,
-        },
-        {
-          label: "Avg Spin",
-          value:
-            player.avg_spin_rate === null
-              ? "--"
-              : `${formatDecimal(player.avg_spin_rate, 0)} rpm`,
-        },
       ],
     }));
   const reportOffensePlayers = (
-    rows: Array<OffensePlayerRow | WeeklyOffensePlayerRow>
+    rows: Array<OffensePlayerRow | RollingOffensePlayerRow>
   ): ReportPlayer[] =>
     rows.map((player) => ({
       mlbPlayerId: player.mlb_player_id,
@@ -911,11 +988,12 @@ export default async function ScoutingReportPage({
       ops: player.ops,
       battingAverage:
         "batting_average" in player ? player.batting_average : null,
+      plateAppearances: player.plate_appearances,
       homeRuns: player.home_runs,
       avgExitVelocity: player.avg_exit_velocity,
     }));
   const reportPitchingPlayers = (
-    rows: Array<PitchingPlayerRow | WeeklyPitchingPlayerRow>
+    rows: Array<PitchingPlayerRow | RollingPitchingPlayerRow>
   ): ReportPlayer[] =>
     rows.map((player) => ({
       mlbPlayerId: player.mlb_player_id,
@@ -1328,97 +1406,121 @@ export default async function ScoutingReportPage({
         </div>
       </section>
 
-      <section className="mt-8" aria-labelledby="weekly-offense-heading">
+      <section className="mt-8" aria-labelledby="rolling-offense-heading">
         <div className="mb-5">
           <h2
-            id="weekly-offense-heading"
+            id="rolling-offense-heading"
             className="text-xl font-semibold text-slate-900"
           >
-            Last Week Offensive Players
+            Offensive Players - Last 7 Days
           </h2>
           <p className="mt-1 text-sm text-slate-600">
-            Hot and cold OPS rankings with at least 10 weekly plate appearances.
+            Hot and cold OPS rankings with at least 10 plate appearances.
           </p>
         </div>
         <div className="grid gap-4 xl:grid-cols-2">
           <div className="grid gap-4">
             <PlayerLeaderboard
               team={abbreviationA}
-              title="Hot Offensive Players - Last Week"
-              detail={formatWeek(latestOffenseWeekA[0]?.week_start_date)}
-              players={weeklyOffenseLeaders(hotOffenseA)}
-              emptyMessage="No hitters met the 10 PA weekly minimum."
+              title="Hot Offensive Players - Last 7 Days"
+              detail={formatRollingWindow(
+                latestOffenseWindowA[0]?.window_start_date,
+                latestOffenseWindowA[0]?.window_end_date
+              )}
+              players={rollingOffenseLeaders(hotOffenseA)}
+              emptyMessage="No qualified players in the last 7 days."
             />
             <PlayerLeaderboard
               team={abbreviationA}
-              title="Cold Offensive Players - Last Week"
-              detail={formatWeek(latestOffenseWeekA[0]?.week_start_date)}
-              players={weeklyOffenseLeaders(coldOffenseA)}
-              emptyMessage="No hitters met the 10 PA weekly minimum."
+              title="Cold Offensive Players - Last 7 Days"
+              detail={formatRollingWindow(
+                latestOffenseWindowA[0]?.window_start_date,
+                latestOffenseWindowA[0]?.window_end_date
+              )}
+              players={rollingOffenseLeaders(coldOffenseA)}
+              emptyMessage="No qualified players in the last 7 days."
             />
           </div>
           <div className="grid gap-4">
             <PlayerLeaderboard
               team={abbreviationB}
-              title="Hot Offensive Players - Last Week"
-              detail={formatWeek(latestOffenseWeekB[0]?.week_start_date)}
-              players={weeklyOffenseLeaders(hotOffenseB)}
-              emptyMessage="No hitters met the 10 PA weekly minimum."
+              title="Hot Offensive Players - Last 7 Days"
+              detail={formatRollingWindow(
+                latestOffenseWindowB[0]?.window_start_date,
+                latestOffenseWindowB[0]?.window_end_date
+              )}
+              players={rollingOffenseLeaders(hotOffenseB)}
+              emptyMessage="No qualified players in the last 7 days."
             />
             <PlayerLeaderboard
               team={abbreviationB}
-              title="Cold Offensive Players - Last Week"
-              detail={formatWeek(latestOffenseWeekB[0]?.week_start_date)}
-              players={weeklyOffenseLeaders(coldOffenseB)}
-              emptyMessage="No hitters met the 10 PA weekly minimum."
+              title="Cold Offensive Players - Last 7 Days"
+              detail={formatRollingWindow(
+                latestOffenseWindowB[0]?.window_start_date,
+                latestOffenseWindowB[0]?.window_end_date
+              )}
+              players={rollingOffenseLeaders(coldOffenseB)}
+              emptyMessage="No qualified players in the last 7 days."
             />
           </div>
         </div>
       </section>
 
-      <section className="mt-8" aria-labelledby="weekly-pitching-heading">
+      <section className="mt-8" aria-labelledby="rolling-pitching-heading">
         <div className="mb-5">
           <h2
-            id="weekly-pitching-heading"
+            id="rolling-pitching-heading"
             className="text-xl font-semibold text-slate-900"
           >
-            Last Week Pitching Players
+            Pitching Players - Last 7 Days
           </h2>
           <p className="mt-1 text-sm text-slate-600">
-            Lowest and highest ERA results with at least 10 weekly batters faced.
+            Lowest and highest ERA results with at least 10 batters faced.
           </p>
         </div>
         <div className="grid gap-4 xl:grid-cols-2">
           <div className="grid gap-4">
             <PlayerLeaderboard
               team={abbreviationA}
-              title="Hot Pitching Players - Last Week"
-              detail={formatWeek(latestPitchingWeekA[0]?.week_start_date)}
-              players={weeklyPitchingLeaders(hotPitchingA)}
-              emptyMessage="No pitchers met the 10 BF weekly minimum."
+              title="Hot Pitching Players - Last 7 Days"
+              detail={formatRollingWindow(
+                latestPitchingWindowA[0]?.window_start_date,
+                latestPitchingWindowA[0]?.window_end_date
+              )}
+              players={rollingPitchingLeaders(hotPitchingA)}
+              emptyMessage="No qualified players in the last 7 days."
             />
             <PlayerLeaderboard
               team={abbreviationA}
-              title="Cold Pitching Players - Last Week"
-              detail={formatWeek(latestPitchingWeekA[0]?.week_start_date)}
-              players={weeklyPitchingLeaders(coldPitchingA)}
-              emptyMessage="No pitchers met the 10 BF weekly minimum."
+              title="Cold Pitching Players - Last 7 Days"
+              detail={formatRollingWindow(
+                latestPitchingWindowA[0]?.window_start_date,
+                latestPitchingWindowA[0]?.window_end_date
+              )}
+              players={rollingPitchingLeaders(coldPitchingA)}
+              emptyMessage="No qualified players in the last 7 days."
             />
           </div>
           <div className="grid gap-4">
             <PlayerLeaderboard
               team={abbreviationB}
-              title="Hot Pitching Players - Last Week"
-              detail={formatWeek(latestPitchingWeekB[0]?.week_start_date)}
-              players={weeklyPitchingLeaders(hotPitchingB)}
-              emptyMessage="No pitchers met the 10 BF weekly minimum."
+              title="Hot Pitching Players - Last 7 Days"
+              detail={formatRollingWindow(
+                latestPitchingWindowB[0]?.window_start_date,
+                latestPitchingWindowB[0]?.window_end_date
+              )}
+              players={rollingPitchingLeaders(hotPitchingB)}
+              emptyMessage="No qualified players in the last 7 days."
             />
             <PlayerLeaderboard
               team={abbreviationB}
-              title="Cold Pitching Players - Last Week"
-              detail={formatWeek(latestPitchingWeekB[0]?.week_start_date)}
-              players={weeklyPitchingLeaders(coldPitchingB)}
-              emptyMessage="No pitchers met the 10 BF weekly minimum."
+              title="Cold Pitching Players - Last 7 Days"
+              detail={formatRollingWindow(
+                latestPitchingWindowB[0]?.window_start_date,
+                latestPitchingWindowB[0]?.window_end_date
+              )}
+              players={rollingPitchingLeaders(coldPitchingB)}
+              emptyMessage="No qualified players in the last 7 days."
             />
           </div>
         </div>

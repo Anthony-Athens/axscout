@@ -64,12 +64,13 @@ def load_team_season_statcast(
     offense_rows: list[dict],
     pitching_rows: list[dict],
 ) -> tuple[int, int]:
-    offense_loaded = _upsert_season_rows(
-        "agg_team_offense_season",
-        offense_rows,
-    )
+    offense_loaded = load_team_offense_season(offense_rows)
     pitching_loaded = _upsert_season_rows(
         "agg_team_pitching_season",
         pitching_rows,
     )
     return offense_loaded, pitching_loaded
+
+
+def load_team_offense_season(rows: list[dict]) -> int:
+    return _upsert_season_rows("agg_team_offense_season", rows)

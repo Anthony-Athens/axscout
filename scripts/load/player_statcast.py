@@ -204,20 +204,30 @@ def load_player_statcast(
     offense_season_rows: list[dict],
     pitching_season_rows: list[dict],
 ) -> dict[str, int]:
-    row_groups = [
-        offense_weekly_rows,
-        pitching_weekly_rows,
-        offense_season_rows,
-        pitching_season_rows,
+    configured_rows = [
+        (*config, rows)
+        for config, rows in zip(
+            AGGREGATE_CONFIG,
+            [
+                offense_weekly_rows,
+                pitching_weekly_rows,
+                offense_season_rows,
+                pitching_season_rows,
+            ],
+            strict=True,
+        )
     ]
+    return load_player_statcast_aggregate_groups(configured_rows)
+
+
+def load_player_statcast_aggregate_groups(
+    configured_rows: list[tuple[str, str, str, list[dict]]],
+) -> dict[str, int]:
+    row_groups = [rows for _, _, _, rows in configured_rows]
     players = _upsert_dim_players(row_groups)
     counts = {"dim_players": len(players)}
 
-    for (table_name, conflict_key, count_key), rows in zip(
-        AGGREGATE_CONFIG,
-        row_groups,
-        strict=True,
-    ):
+    for table_name, conflict_key, count_key, rows in configured_rows:
         counts[count_key] = _upsert_aggregate_rows(
             table_name,
             conflict_key,
