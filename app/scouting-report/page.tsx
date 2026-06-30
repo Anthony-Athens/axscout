@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 
 import PageHeader from "@/components/layout/PageHeader";
 import ExportableScoutingReport from "@/components/ExportableScoutingReport";
+import InjuryReportCard, {
+  type InjuryReportItem,
+} from "@/components/InjuryReportCard";
 import ProbableStarterCard, {
   type ProbableStarter,
 } from "@/components/ProbableStarterCard";
@@ -34,6 +37,7 @@ const DEFAULT_TEAM_A = "PIT";
 const DEFAULT_TEAM_B = "CHC";
 const MIN_ROLLING_7_PLATE_APPEARANCES = 10;
 const MIN_ROLLING_7_BATTERS_FACED = 10;
+const CURRENT_SEASON = new Date().getUTCFullYear();
 
 type SeasonMetrics = {
   season: number;
@@ -53,6 +57,24 @@ type RollingMetrics = {
   runs_scored_per_game: number | null;
   runs_allowed_per_game: number | null;
   run_differential_per_game: number | null;
+};
+
+type SeasonOffense = {
+  season: number;
+  batting_average: number | null;
+  ops: number | null;
+  home_runs: number | null;
+  runs: number | null;
+  avg_exit_velocity: number | null;
+};
+
+type SeasonPitching = {
+  season: number;
+  strikeouts: number | null;
+  era: number | null;
+  whip: number | null;
+  avg_pitch_speed: number | null;
+  avg_spin_rate: number | null;
 };
 
 type WeeklyOffense = {
@@ -137,6 +159,18 @@ type MatchupGameRow = {
   home_probable_pitcher_name: string | null;
   away_probable_pitcher_mlb_id: number | null;
   away_probable_pitcher_name: string | null;
+};
+
+type InjuryRow = {
+  id: number;
+  team_abbreviation: string;
+  mlb_player_id: number | null;
+  player_name: string;
+  status: string | null;
+  injury_description: string | null;
+  injured_list_designation: string | null;
+  date_placed: string | null;
+  expected_return: string | null;
 };
 
 function formatDecimal(value: number | null | undefined, digits = 2) {
@@ -310,8 +344,8 @@ function latestRollingRows<T extends { window_end_date: string }>(rows: T[]): T[
 
 function seasonSnapshotSections(
   season: SeasonMetrics | null,
-  offense: WeeklyOffense | null,
-  pitching: WeeklyPitching | null
+  offense: SeasonOffense | null,
+  pitching: SeasonPitching | null
 ): SnapshotSection[] {
   return [
     {
@@ -338,10 +372,11 @@ function seasonSnapshotSections(
       rows: [
         {
           label: "BA",
-          value: formatDecimal(offense?.batting_average, 3),
+          value: formatBaseballRate(offense?.batting_average),
         },
-        { label: "OPS", value: formatDecimal(offense?.ops, 3) },
+        { label: "OPS", value: formatBaseballRate(offense?.ops) },
         { label: "Home Runs", value: formatInteger(offense?.home_runs) },
+        { label: "Runs", value: formatInteger(offense?.runs) },
         {
           label: "Avg Exit Velocity",
           value:
@@ -357,15 +392,11 @@ function seasonSnapshotSections(
         { label: "Strikeouts", value: formatInteger(pitching?.strikeouts) },
         {
           label: "ERA",
-          value:
-            pitching?.era == null ? "Coming soon" : formatDecimal(pitching.era),
+          value: formatDecimal(pitching?.era),
         },
         {
           label: "WHIP",
-          value:
-            pitching?.whip == null
-              ? "Coming soon"
-              : formatDecimal(pitching.whip, 3),
+          value: formatDecimal(pitching?.whip),
         },
         {
           label: "Avg Pitch Speed",
@@ -463,12 +494,16 @@ export default async function ScoutingReportPage({
   const [
     seasonAResult,
     seasonBResult,
+    seasonOffenseAResult,
+    seasonOffenseBResult,
+    seasonPitchingAResult,
+    seasonPitchingBResult,
     rollingAResult,
     rollingBResult,
-    offenseAResult,
-    offenseBResult,
-    pitchingAResult,
-    pitchingBResult,
+    weeklyOffenseAResult,
+    weeklyOffenseBResult,
+    weeklyPitchingAResult,
+    weeklyPitchingBResult,
     offensePlayersAResult,
     offensePlayersBResult,
     pitchingPlayersAResult,
@@ -477,6 +512,7 @@ export default async function ScoutingReportPage({
     rollingOffensePlayersBResult,
     rollingPitchingPlayersAResult,
     rollingPitchingPlayersBResult,
+    injuriesResult,
     upcomingGamesResult,
     latestRefreshResult,
   ] = await Promise.all([
@@ -499,6 +535,34 @@ export default async function ScoutingReportPage({
       .limit(1)
       .maybeSingle(),
     supabase
+      .from("agg_team_offense_season")
+      .select("season, batting_average, ops, home_runs, runs, avg_exit_velocity")
+      .eq("team_abbreviation", abbreviationA)
+      .order("season", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("agg_team_offense_season")
+      .select("season, batting_average, ops, home_runs, runs, avg_exit_velocity")
+      .eq("team_abbreviation", abbreviationB)
+      .order("season", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("agg_team_pitching_season")
+      .select("season, strikeouts, era, whip, avg_pitch_speed, avg_spin_rate")
+      .eq("team_abbreviation", abbreviationA)
+      .order("season", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("agg_team_pitching_season")
+      .select("season, strikeouts, era, whip, avg_pitch_speed, avg_spin_rate")
+      .eq("team_abbreviation", abbreviationB)
+      .order("season", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
       .from("agg_team_rolling_14")
       .select(
         "wins, losses, winning_percentage, runs_scored_per_game, runs_allowed_per_game, run_differential_per_game"
@@ -628,6 +692,15 @@ export default async function ScoutingReportPage({
       .not("mlb_player_id", "is", null)
       .order("window_end_date", { ascending: false })
       .limit(200),
+    supabase
+      .from("player_injuries")
+      .select(
+        "id, team_abbreviation, mlb_player_id, player_name, status, injury_description, injured_list_designation, date_placed, expected_return"
+      )
+      .eq("season", CURRENT_SEASON)
+      .eq("is_active", true)
+      .in("team_abbreviation", [abbreviationA, abbreviationB])
+      .order("date_placed", { ascending: false, nullsFirst: false }),
     supabase
       .from("fact_games")
       .select(
@@ -653,16 +726,41 @@ export default async function ScoutingReportPage({
 
   const seasonA = seasonAResult.data as SeasonMetrics | null;
   const seasonB = seasonBResult.data as SeasonMetrics | null;
+  const seasonOffenseA = seasonOffenseAResult.data as SeasonOffense | null;
+  const seasonOffenseB = seasonOffenseBResult.data as SeasonOffense | null;
+  const seasonPitchingA = seasonPitchingAResult.data as SeasonPitching | null;
+  const seasonPitchingB = seasonPitchingBResult.data as SeasonPitching | null;
   const rollingA = rollingAResult.data as RollingMetrics | null;
   const rollingB = rollingBResult.data as RollingMetrics | null;
-  const offenseRowsA = (offenseAResult.data ?? []) as WeeklyOffense[];
-  const offenseRowsB = (offenseBResult.data ?? []) as WeeklyOffense[];
-  const pitchingRowsA = (pitchingAResult.data ?? []) as WeeklyPitching[];
-  const pitchingRowsB = (pitchingBResult.data ?? []) as WeeklyPitching[];
-  const offenseA = offenseRowsA[0] ?? null;
-  const offenseB = offenseRowsB[0] ?? null;
-  const pitchingA = pitchingRowsA[0] ?? null;
-  const pitchingB = pitchingRowsB[0] ?? null;
+  const weeklyOffenseRowsA = (weeklyOffenseAResult.data ?? []) as WeeklyOffense[];
+  const weeklyOffenseRowsB = (weeklyOffenseBResult.data ?? []) as WeeklyOffense[];
+  const weeklyPitchingRowsA = (weeklyPitchingAResult.data ?? []) as WeeklyPitching[];
+  const weeklyPitchingRowsB = (weeklyPitchingBResult.data ?? []) as WeeklyPitching[];
+  const weeklyOffenseA = weeklyOffenseRowsA[0] ?? null;
+  const weeklyOffenseB = weeklyOffenseRowsB[0] ?? null;
+  const weeklyPitchingA = weeklyPitchingRowsA[0] ?? null;
+  const weeklyPitchingB = weeklyPitchingRowsB[0] ?? null;
+  const injuryRows = (injuriesResult.data ?? []) as InjuryRow[];
+  const injuriesForTeam = (abbreviation: string): InjuryReportItem[] =>
+    injuryRows
+      .filter((injury) => injury.team_abbreviation === abbreviation)
+      .map((injury) => ({
+        id: injury.id,
+        mlbPlayerId: injury.mlb_player_id,
+        playerName: injury.player_name,
+        status: injury.status,
+        injuryDescription: injury.injury_description,
+        injuredListDesignation: injury.injured_list_designation,
+        datePlaced: injury.date_placed,
+        expectedReturn: injury.expected_return,
+      }));
+  const injuriesA = injuriesForTeam(abbreviationA);
+  const injuriesB = injuriesForTeam(abbreviationB);
+  const injuredPlayerIds = new Set(
+    injuryRows
+      .map((injury) => injury.mlb_player_id)
+      .filter((playerId): playerId is number => playerId !== null)
+  );
   const upcomingGames = (upcomingGamesResult.data ?? []) as MatchupGameRow[];
   const gamesForTeam = (teamKey: number) =>
     upcomingGames
@@ -894,6 +992,7 @@ export default async function ScoutingReportPage({
         era: stats?.era ?? null,
         whip: stats?.whip ?? null,
         strikeouts: stats?.strikeouts ?? null,
+        isInjured: playerId ? injuredPlayerIds.has(playerId) : false,
       };
     });
   const probableStartersA = probableStartersForTeam(
@@ -908,6 +1007,7 @@ export default async function ScoutingReportPage({
     rows.map((player) => ({
       mlb_player_id: player.mlb_player_id,
       full_name: playerName(player.mlb_player_id),
+      is_injured: injuredPlayerIds.has(player.mlb_player_id),
       metrics: [
         { label: "OPS", value: formatDecimal(player.ops, 3) },
         { label: "HR", value: player.home_runs ?? "--" },
@@ -924,6 +1024,7 @@ export default async function ScoutingReportPage({
     rows.map((player) => ({
       mlb_player_id: player.mlb_player_id,
       full_name: playerName(player.mlb_player_id),
+      is_injured: injuredPlayerIds.has(player.mlb_player_id),
       metrics: [
         { label: "ERA", value: formatDecimal(player.era) },
         { label: "WHIP", value: formatDecimal(player.whip) },
@@ -950,6 +1051,7 @@ export default async function ScoutingReportPage({
     rows.map((player) => ({
       mlb_player_id: player.mlb_player_id,
       full_name: playerName(player.mlb_player_id),
+      is_injured: injuredPlayerIds.has(player.mlb_player_id),
       metrics: [
         { label: "OPS", value: formatBaseballRate(player.ops) },
         { label: "AVG", value: formatBaseballRate(player.batting_average) },
@@ -970,6 +1072,7 @@ export default async function ScoutingReportPage({
     rows.map((player) => ({
       mlb_player_id: player.mlb_player_id,
       full_name: playerName(player.mlb_player_id),
+      is_injured: injuredPlayerIds.has(player.mlb_player_id),
       metrics: [
         { label: "ERA", value: formatDecimal(player.era) },
         { label: "WHIP", value: formatDecimal(player.whip) },
@@ -985,6 +1088,7 @@ export default async function ScoutingReportPage({
     rows.map((player) => ({
       mlbPlayerId: player.mlb_player_id,
       fullName: playerName(player.mlb_player_id),
+      isInjured: injuredPlayerIds.has(player.mlb_player_id),
       ops: player.ops,
       battingAverage:
         "batting_average" in player ? player.batting_average : null,
@@ -998,6 +1102,7 @@ export default async function ScoutingReportPage({
     rows.map((player) => ({
       mlbPlayerId: player.mlb_player_id,
       fullName: playerName(player.mlb_player_id),
+      isInjured: injuredPlayerIds.has(player.mlb_player_id),
       era: player.era,
       whip: player.whip,
       strikeouts: player.strikeouts,
@@ -1007,6 +1112,16 @@ export default async function ScoutingReportPage({
         "home_runs_allowed" in player ? player.home_runs_allowed : null,
       avgPitchSpeed: player.avg_pitch_speed,
       avgSpinRate: player.avg_spin_rate,
+    }));
+  const reportExpectedStarters = (starters: ProbableStarter[]) =>
+    starters.map((starter) => ({
+      gameDate: starter.gameDate,
+      opponentAbbreviation: starter.opponentAbbreviation,
+      isHome: starter.isHome,
+      fullName: starter.fullName,
+      era: starter.era,
+      whip: starter.whip,
+      isInjured: starter.isInjured,
     }));
   const exportReportData: ScoutingReportData = {
     matchup: `${teamA.name} vs ${teamB.name}`,
@@ -1037,21 +1152,39 @@ export default async function ScoutingReportPage({
             runDifferentialPerGame: rollingA.run_differential_per_game,
           }
         : null,
-      offense: offenseA
+      seasonOffense: seasonOffenseA
         ? {
-            battingAverage: offenseA.batting_average,
-            ops: offenseA.ops,
-            homeRuns: offenseA.home_runs,
-            avgExitVelocity: offenseA.avg_exit_velocity,
+            battingAverage: seasonOffenseA.batting_average,
+            ops: seasonOffenseA.ops,
+            homeRuns: seasonOffenseA.home_runs,
+            runs: seasonOffenseA.runs,
+            avgExitVelocity: seasonOffenseA.avg_exit_velocity,
           }
         : null,
-      pitching: pitchingA
+      seasonPitching: seasonPitchingA
         ? {
-            strikeouts: pitchingA.strikeouts,
-            avgPitchSpeed: pitchingA.avg_pitch_speed,
-            avgSpinRate: pitchingA.avg_spin_rate,
-            era: pitchingA.era,
-            whip: pitchingA.whip,
+            strikeouts: seasonPitchingA.strikeouts,
+            avgPitchSpeed: seasonPitchingA.avg_pitch_speed,
+            avgSpinRate: seasonPitchingA.avg_spin_rate,
+            era: seasonPitchingA.era,
+            whip: seasonPitchingA.whip,
+          }
+        : null,
+      offense: weeklyOffenseA
+        ? {
+            battingAverage: weeklyOffenseA.batting_average,
+            ops: weeklyOffenseA.ops,
+            homeRuns: weeklyOffenseA.home_runs,
+            avgExitVelocity: weeklyOffenseA.avg_exit_velocity,
+          }
+        : null,
+      pitching: weeklyPitchingA
+        ? {
+            strikeouts: weeklyPitchingA.strikeouts,
+            avgPitchSpeed: weeklyPitchingA.avg_pitch_speed,
+            avgSpinRate: weeklyPitchingA.avg_spin_rate,
+            era: weeklyPitchingA.era,
+            whip: weeklyPitchingA.whip,
           }
         : null,
       seasonOffenseLeaders: reportOffensePlayers(offensePlayersA),
@@ -1060,6 +1193,16 @@ export default async function ScoutingReportPage({
       coldOffense: reportOffensePlayers(coldOffenseA),
       hotPitching: reportPitchingPlayers(hotPitchingA),
       coldPitching: reportPitchingPlayers(coldPitchingA),
+      expectedStarters: reportExpectedStarters(probableStartersA),
+      injuries: injuriesA.map((injury) => ({
+        mlbPlayerId: injury.mlbPlayerId,
+        playerName: injury.playerName,
+        status: injury.status,
+        injuryDescription: injury.injuryDescription,
+        injuredListDesignation: injury.injuredListDesignation,
+        datePlaced: injury.datePlaced,
+        expectedReturn: injury.expectedReturn,
+      })),
     },
     teamB: {
       side: "Team B",
@@ -1086,21 +1229,39 @@ export default async function ScoutingReportPage({
             runDifferentialPerGame: rollingB.run_differential_per_game,
           }
         : null,
-      offense: offenseB
+      seasonOffense: seasonOffenseB
         ? {
-            battingAverage: offenseB.batting_average,
-            ops: offenseB.ops,
-            homeRuns: offenseB.home_runs,
-            avgExitVelocity: offenseB.avg_exit_velocity,
+            battingAverage: seasonOffenseB.batting_average,
+            ops: seasonOffenseB.ops,
+            homeRuns: seasonOffenseB.home_runs,
+            runs: seasonOffenseB.runs,
+            avgExitVelocity: seasonOffenseB.avg_exit_velocity,
           }
         : null,
-      pitching: pitchingB
+      seasonPitching: seasonPitchingB
         ? {
-            strikeouts: pitchingB.strikeouts,
-            avgPitchSpeed: pitchingB.avg_pitch_speed,
-            avgSpinRate: pitchingB.avg_spin_rate,
-            era: pitchingB.era,
-            whip: pitchingB.whip,
+            strikeouts: seasonPitchingB.strikeouts,
+            avgPitchSpeed: seasonPitchingB.avg_pitch_speed,
+            avgSpinRate: seasonPitchingB.avg_spin_rate,
+            era: seasonPitchingB.era,
+            whip: seasonPitchingB.whip,
+          }
+        : null,
+      offense: weeklyOffenseB
+        ? {
+            battingAverage: weeklyOffenseB.batting_average,
+            ops: weeklyOffenseB.ops,
+            homeRuns: weeklyOffenseB.home_runs,
+            avgExitVelocity: weeklyOffenseB.avg_exit_velocity,
+          }
+        : null,
+      pitching: weeklyPitchingB
+        ? {
+            strikeouts: weeklyPitchingB.strikeouts,
+            avgPitchSpeed: weeklyPitchingB.avg_pitch_speed,
+            avgSpinRate: weeklyPitchingB.avg_spin_rate,
+            era: weeklyPitchingB.era,
+            whip: weeklyPitchingB.whip,
           }
         : null,
       seasonOffenseLeaders: reportOffensePlayers(offensePlayersB),
@@ -1109,6 +1270,16 @@ export default async function ScoutingReportPage({
       coldOffense: reportOffensePlayers(coldOffenseB),
       hotPitching: reportPitchingPlayers(hotPitchingB),
       coldPitching: reportPitchingPlayers(coldPitchingB),
+      expectedStarters: reportExpectedStarters(probableStartersB),
+      injuries: injuriesB.map((injury) => ({
+        mlbPlayerId: injury.mlbPlayerId,
+        playerName: injury.playerName,
+        status: injury.status,
+        injuryDescription: injury.injuryDescription,
+        injuredListDesignation: injury.injuredListDesignation,
+        datePlaced: injury.datePlaced,
+        expectedReturn: injury.expectedReturn,
+      })),
     },
   };
 
@@ -1127,6 +1298,42 @@ export default async function ScoutingReportPage({
           teamB={abbreviationB}
         />
       </SectionCard>
+
+      <section className="mt-8" aria-labelledby="season-comparison-heading">
+        <div className="mb-5">
+          <h2
+            id="season-comparison-heading"
+            className="text-xl font-semibold text-slate-900"
+          >
+            Season Comparison
+          </h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Season-to-date results, offense, and pitching metrics.
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <TeamSnapshotCard
+            side="Team A"
+            teamName={teamA.name}
+            abbreviation={abbreviationA}
+            sections={seasonSnapshotSections(
+              seasonA,
+              seasonOffenseA,
+              seasonPitchingA
+            )}
+          />
+          <TeamSnapshotCard
+            side="Team B"
+            teamName={teamB.name}
+            abbreviation={abbreviationB}
+            sections={seasonSnapshotSections(
+              seasonB,
+              seasonOffenseB,
+              seasonPitchingB
+            )}
+          />
+        </div>
+      </section>
 
       <section className="mt-8" aria-labelledby="expected-starters-heading">
         <div className="mb-5">
@@ -1152,34 +1359,6 @@ export default async function ScoutingReportPage({
             teamName={teamB.name}
             abbreviation={abbreviationB}
             starters={probableStartersB}
-          />
-        </div>
-      </section>
-
-      <section className="mt-8" aria-labelledby="season-comparison-heading">
-        <div className="mb-5">
-          <h2
-            id="season-comparison-heading"
-            className="text-xl font-semibold text-slate-900"
-          >
-            Season Comparison
-          </h2>
-          <p className="mt-1 text-sm text-slate-600">
-            Season-to-date results with the latest weekly offense and pitching snapshot.
-          </p>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          <TeamSnapshotCard
-            side="Team A"
-            teamName={teamA.name}
-            abbreviation={abbreviationA}
-            sections={seasonSnapshotSections(seasonA, offenseA, pitchingA)}
-          />
-          <TeamSnapshotCard
-            side="Team B"
-            teamName={teamB.name}
-            abbreviation={abbreviationB}
-            sections={seasonSnapshotSections(seasonB, offenseB, pitchingB)}
           />
         </div>
       </section>
@@ -1253,29 +1432,29 @@ export default async function ScoutingReportPage({
           rows={[
             {
               label: "BA",
-              teamAValue: formatDecimal(offenseA?.batting_average, 3),
-              teamBValue: formatDecimal(offenseB?.batting_average, 3),
+              teamAValue: formatDecimal(weeklyOffenseA?.batting_average, 3),
+              teamBValue: formatDecimal(weeklyOffenseB?.batting_average, 3),
             },
             {
               label: "OPS",
-              teamAValue: formatDecimal(offenseA?.ops, 3),
-              teamBValue: formatDecimal(offenseB?.ops, 3),
+              teamAValue: formatDecimal(weeklyOffenseA?.ops, 3),
+              teamBValue: formatDecimal(weeklyOffenseB?.ops, 3),
             },
             {
               label: "HR",
-              teamAValue: formatInteger(offenseA?.home_runs),
-              teamBValue: formatInteger(offenseB?.home_runs),
+              teamAValue: formatInteger(weeklyOffenseA?.home_runs),
+              teamBValue: formatInteger(weeklyOffenseB?.home_runs),
             },
             {
               label: "Avg Exit Velocity",
               teamAValue:
-                offenseA?.avg_exit_velocity === null || !offenseA
+                weeklyOffenseA?.avg_exit_velocity === null || !weeklyOffenseA
                   ? "--"
-                  : `${formatDecimal(offenseA.avg_exit_velocity, 1)} mph`,
+                  : `${formatDecimal(weeklyOffenseA.avg_exit_velocity, 1)} mph`,
               teamBValue:
-                offenseB?.avg_exit_velocity === null || !offenseB
+                weeklyOffenseB?.avg_exit_velocity === null || !weeklyOffenseB
                   ? "--"
-                  : `${formatDecimal(offenseB.avg_exit_velocity, 1)} mph`,
+                  : `${formatDecimal(weeklyOffenseB.avg_exit_velocity, 1)} mph`,
             },
           ]}
         />
@@ -1299,52 +1478,52 @@ export default async function ScoutingReportPage({
           rows={[
             {
               label: "Strikeouts",
-              teamAValue: formatInteger(pitchingA?.strikeouts),
-              teamBValue: formatInteger(pitchingB?.strikeouts),
+              teamAValue: formatInteger(weeklyPitchingA?.strikeouts),
+              teamBValue: formatInteger(weeklyPitchingB?.strikeouts),
             },
             {
               label: "Avg Pitch Speed",
               teamAValue:
-                pitchingA?.avg_pitch_speed === null || !pitchingA
+                weeklyPitchingA?.avg_pitch_speed === null || !weeklyPitchingA
                   ? "--"
-                  : `${formatDecimal(pitchingA.avg_pitch_speed, 1)} mph`,
+                  : `${formatDecimal(weeklyPitchingA.avg_pitch_speed, 1)} mph`,
               teamBValue:
-                pitchingB?.avg_pitch_speed === null || !pitchingB
+                weeklyPitchingB?.avg_pitch_speed === null || !weeklyPitchingB
                   ? "--"
-                  : `${formatDecimal(pitchingB.avg_pitch_speed, 1)} mph`,
+                  : `${formatDecimal(weeklyPitchingB.avg_pitch_speed, 1)} mph`,
             },
             {
               label: "Avg Spin Rate",
               teamAValue:
-                pitchingA?.avg_spin_rate === null || !pitchingA
+                weeklyPitchingA?.avg_spin_rate === null || !weeklyPitchingA
                   ? "--"
-                  : `${formatDecimal(pitchingA.avg_spin_rate, 0)} rpm`,
+                  : `${formatDecimal(weeklyPitchingA.avg_spin_rate, 0)} rpm`,
               teamBValue:
-                pitchingB?.avg_spin_rate === null || !pitchingB
+                weeklyPitchingB?.avg_spin_rate === null || !weeklyPitchingB
                   ? "--"
-                  : `${formatDecimal(pitchingB.avg_spin_rate, 0)} rpm`,
+                  : `${formatDecimal(weeklyPitchingB.avg_spin_rate, 0)} rpm`,
             },
             {
               label: "ERA",
               teamAValue:
-                pitchingA?.era === null || !pitchingA
+                weeklyPitchingA?.era === null || !weeklyPitchingA
                   ? "Coming soon"
-                  : formatDecimal(pitchingA.era),
+                  : formatDecimal(weeklyPitchingA.era),
               teamBValue:
-                pitchingB?.era === null || !pitchingB
+                weeklyPitchingB?.era === null || !weeklyPitchingB
                   ? "Coming soon"
-                  : formatDecimal(pitchingB.era),
+                  : formatDecimal(weeklyPitchingB.era),
             },
             {
               label: "WHIP",
               teamAValue:
-                pitchingA?.whip === null || !pitchingA
+                weeklyPitchingA?.whip === null || !weeklyPitchingA
                   ? "Coming soon"
-                  : formatDecimal(pitchingA.whip, 3),
+                  : formatDecimal(weeklyPitchingA.whip, 3),
               teamBValue:
-                pitchingB?.whip === null || !pitchingB
+                weeklyPitchingB?.whip === null || !weeklyPitchingB
                   ? "Coming soon"
-                  : formatDecimal(pitchingB.whip, 3),
+                  : formatDecimal(weeklyPitchingB.whip, 3),
             },
           ]}
         />
@@ -1523,6 +1702,32 @@ export default async function ScoutingReportPage({
               emptyMessage="No qualified players in the last 7 days."
             />
           </div>
+        </div>
+      </section>
+
+      <section className="mt-8" aria-labelledby="injury-report-heading">
+        <div className="mb-5">
+          <h2
+            id="injury-report-heading"
+            className="text-xl font-semibold text-slate-900"
+          >
+            Injury Report
+          </h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Active injured-list context from official MLB roster status.
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <InjuryReportCard
+            teamName={teamA.name}
+            abbreviation={abbreviationA}
+            injuries={injuriesA}
+          />
+          <InjuryReportCard
+            teamName={teamB.name}
+            abbreviation={abbreviationB}
+            injuries={injuriesB}
+          />
         </div>
       </section>
 

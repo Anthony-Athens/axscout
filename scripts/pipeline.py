@@ -7,6 +7,7 @@ from scripts.pipelines.build_team_rolling_14_pipeline import (
 )
 from scripts.config.settings import (
     ENABLE_PITCHING_SUMMARY,
+    ENABLE_PLAYER_INJURIES,
     ENABLE_PLAYER_ROLLING_7,
     ENABLE_PLAYER_STATCAST,
     ENABLE_TEAM_OFFENSE_SEASON,
@@ -92,6 +93,22 @@ def main() -> None:
         )
     else:
         print("Skipping Player Rolling 7 Statcast Aggregates (disabled).")
+
+    if ENABLE_PLAYER_INJURIES:
+        from scripts.pipelines.load_player_injuries_pipeline import (
+            main as load_player_injuries_pipeline,
+        )
+
+        print("Starting pipeline: Load Player Injuries")
+        if load_player_injuries_pipeline():
+            print("Completed pipeline: Load Player Injuries")
+        else:
+            print(
+                "Player Injuries refresh failed; continuing because the "
+                "optional source must not block the daily pipeline."
+            )
+    else:
+        print("Skipping Player Injuries (disabled).")
 
     if ENABLE_PITCHING_SUMMARY:
         from scripts.pipelines.build_pitching_summary_pipeline import (

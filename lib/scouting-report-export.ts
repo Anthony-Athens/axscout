@@ -14,6 +14,27 @@ export type ReportPlayer = {
   homeRunsAllowed?: number | null;
   avgPitchSpeed?: number | null;
   avgSpinRate?: number | null;
+  isInjured?: boolean;
+};
+
+export type ReportInjury = {
+  mlbPlayerId: number | null;
+  playerName: string;
+  status: string | null;
+  injuryDescription: string | null;
+  injuredListDesignation: string | null;
+  datePlaced: string | null;
+  expectedReturn: string | null;
+};
+
+export type ReportStarter = {
+  gameDate: string;
+  opponentAbbreviation: string;
+  isHome: boolean;
+  fullName: string | null;
+  era: number | null;
+  whip: number | null;
+  isInjured?: boolean;
 };
 
 export type ReportTeam = {
@@ -37,6 +58,20 @@ export type ReportTeam = {
     runsAllowedPerGame: number | null;
     runDifferentialPerGame: number | null;
   } | null;
+  seasonOffense: {
+    battingAverage: number | null;
+    ops: number | null;
+    homeRuns: number | null;
+    runs: number | null;
+    avgExitVelocity: number | null;
+  } | null;
+  seasonPitching: {
+    strikeouts: number | null;
+    avgPitchSpeed: number | null;
+    avgSpinRate: number | null;
+    era: number | null;
+    whip: number | null;
+  } | null;
   offense: {
     battingAverage: number | null;
     ops: number | null;
@@ -56,6 +91,8 @@ export type ReportTeam = {
   coldOffense: ReportPlayer[];
   hotPitching: ReportPlayer[];
   coldPitching: ReportPlayer[];
+  expectedStarters: ReportStarter[];
+  injuries: ReportInjury[];
 };
 
 export type ScoutingReportData = {
@@ -224,10 +261,68 @@ function playerRows(
   return players.map((player) => [
     team.side,
     team.abbreviation,
-    player.fullName,
+    playerDisplayName(player),
     kind === "offense"
       ? `OPS ${formatBaseballRate(player.ops)}, AVG ${formatBaseballRate(player.battingAverage)}, HR ${formatInteger(player.homeRuns)}, EV ${formatNumber(player.avgExitVelocity, 1)} mph, PA ${formatInteger(player.plateAppearances)}`
       : `ERA ${formatPitchingRate(player.era)}, WHIP ${formatPitchingRate(player.whip)}, K ${formatInteger(player.strikeouts)}, H ${formatInteger(player.hitsAllowed)}, BB ${formatInteger(player.walks)}, HR ${formatInteger(player.homeRunsAllowed)}`,
+  ]);
+}
+
+function playerDisplayName(player: ReportPlayer) {
+  return `${player.fullName}${player.isInjured ? " [Injured]" : ""}`;
+}
+
+function expectedStarterRows(team: ReportTeam) {
+  if (!team.expectedStarters.length) {
+    return [
+      [
+        team.side,
+        team.abbreviation,
+        "No upcoming games found",
+        "--",
+        "Not announced",
+        "Not announced",
+        "Not announced",
+      ],
+    ];
+  }
+
+  return team.expectedStarters.map((starter) => [
+    team.side,
+    team.abbreviation,
+    formatGameDate(starter.gameDate),
+    `${starter.isHome ? "Home vs" : "Away at"} ${starter.opponentAbbreviation}`,
+    `${starter.fullName ?? "Not announced"}${starter.isInjured ? " [Injured]" : ""}`,
+    starter.era === null ? "Not announced" : starter.era.toFixed(2),
+    starter.whip === null ? "Not announced" : starter.whip.toFixed(2),
+  ]);
+}
+
+function injuryRows(team: ReportTeam) {
+  if (!team.injuries.length) {
+    return [
+      [
+        team.side,
+        team.abbreviation,
+        "No active injuries found",
+        "--",
+        "--",
+        "--",
+        "--",
+        "--",
+      ],
+    ];
+  }
+
+  return team.injuries.map((injury) => [
+    team.side,
+    team.abbreviation,
+    injury.playerName,
+    injury.status ?? "Injured",
+    injury.injuredListDesignation ?? "Not available",
+    injury.injuryDescription ?? "Not available",
+    formatGameDate(injury.datePlaced),
+    injury.expectedReturn ?? "Not available",
   ]);
 }
 
@@ -483,10 +578,10 @@ export function buildScoutingReport(
     const pitchingPlayer = team.hotPitching[0] ?? team.seasonPitchingLeaders[0];
     return [
       offensePlayer
-        ? `${team.side} (${team.abbreviation}): ${offensePlayer.fullName}, highlighted by an OPS of ${formatNumber(offensePlayer.ops, 3)}.`
+        ? `${team.side} (${team.abbreviation}): ${playerDisplayName(offensePlayer)}, highlighted by an OPS of ${formatNumber(offensePlayer.ops, 3)}.`
         : null,
       pitchingPlayer
-        ? `${team.side} (${team.abbreviation}): ${pitchingPlayer.fullName}, highlighted by ${pitchingWatchSummary(pitchingPlayer)} in the last 7 days.`
+        ? `${team.side} (${team.abbreviation}): ${playerDisplayName(pitchingPlayer)}, highlighted by ${pitchingWatchSummary(pitchingPlayer)} in the last 7 days.`
         : null,
     ].filter((item): item is string => Boolean(item));
   });
@@ -533,7 +628,7 @@ export function buildScoutingReport(
       ],
     },
     {
-      heading: "Season Snapshot",
+      heading: "Season Comparison",
       blocks: [
         {
           type: "table",
@@ -548,6 +643,59 @@ export function buildScoutingReport(
             formatInteger(team.season?.runsAllowed),
             formatDifferential(team.season?.runDifferential),
           ]),
+        },
+        { type: "paragraph", text: "Season offense" },
+        {
+          type: "table",
+          headers: ["Team", "BA", "OPS", "HR", "Runs", "Avg EV"],
+          rows: [teamA, teamB].map((team) => [
+            team.abbreviation,
+            formatBaseballRate(team.seasonOffense?.battingAverage),
+            formatBaseballRate(team.seasonOffense?.ops),
+            formatInteger(team.seasonOffense?.homeRuns),
+            formatInteger(team.seasonOffense?.runs),
+            team.seasonOffense?.avgExitVelocity == null
+              ? "--"
+              : `${team.seasonOffense.avgExitVelocity.toFixed(1)} mph`,
+          ]),
+        },
+        { type: "paragraph", text: "Season pitching" },
+        {
+          type: "table",
+          headers: ["Team", "ERA", "WHIP", "K", "Avg Velo", "Avg Spin"],
+          rows: [teamA, teamB].map((team) => [
+            team.abbreviation,
+            formatPitchingRate(team.seasonPitching?.era),
+            formatPitchingRate(team.seasonPitching?.whip),
+            formatInteger(team.seasonPitching?.strikeouts),
+            team.seasonPitching?.avgPitchSpeed == null
+              ? "--"
+              : `${team.seasonPitching.avgPitchSpeed.toFixed(1)} mph`,
+            team.seasonPitching?.avgSpinRate == null
+              ? "--"
+              : `${team.seasonPitching.avgSpinRate.toFixed(0)} rpm`,
+          ]),
+        },
+      ],
+    },
+    {
+      heading: "Expected Starting Pitchers",
+      blocks: [
+        {
+          type: "table",
+          headers: [
+            "Side",
+            "Team",
+            "Date",
+            "Matchup",
+            "Probable Starter",
+            "ERA",
+            "WHIP",
+          ],
+          rows: [
+            ...expectedStarterRows(teamA),
+            ...expectedStarterRows(teamB),
+          ],
         },
       ],
     },
@@ -664,6 +812,25 @@ export function buildScoutingReport(
             ...playerRows(teamA, teamA.coldPitching, "pitching"),
             ...playerRows(teamB, teamB.coldPitching, "pitching"),
           ],
+        },
+      ],
+    },
+    {
+      heading: "Injury Report",
+      blocks: [
+        {
+          type: "table",
+          headers: [
+            "Side",
+            "Team",
+            "Player",
+            "Status",
+            "IL Designation",
+            "Injury",
+            "Date Placed",
+            "Expected Return",
+          ],
+          rows: [...injuryRows(teamA), ...injuryRows(teamB)],
         },
       ],
     },

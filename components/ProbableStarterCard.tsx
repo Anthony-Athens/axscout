@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import InjuredBadge from "@/components/InjuredBadge";
+
 export type ProbableStarter = {
   mlbGamePk: number;
   gameDate: string;
@@ -11,6 +13,7 @@ export type ProbableStarter = {
   era: number | null;
   whip: number | null;
   strikeouts: number | null;
+  isInjured?: boolean;
 };
 
 function formatRate(value: number | null) {
@@ -64,18 +67,21 @@ export default function ProbableStarterCard({
                     {formatGameDate(pitcher.gameDate)} · {pitcher.isHome ? "vs" : "at"}{" "}
                     {pitcher.opponentAbbreviation}
                   </p>
-                  {pitcher.fullName && pitcher.mlbPlayerId ? (
-                    <Link
-                      href={`/trends/individual?playerId=${pitcher.mlbPlayerId}`}
-                      className="mt-1 block font-semibold text-slate-950 hover:text-blue-600"
-                    >
-                      {pitcher.fullName}
-                    </Link>
-                  ) : (
-                    <p className="mt-1 font-semibold text-slate-950">
-                      {pitcher.fullName ?? "Not announced"}
-                    </p>
-                  )}
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    {pitcher.fullName && pitcher.mlbPlayerId ? (
+                      <Link
+                        href={`/trends/individual?playerId=${pitcher.mlbPlayerId}`}
+                        className="font-semibold text-slate-950 hover:text-blue-600"
+                      >
+                        {pitcher.fullName}
+                      </Link>
+                    ) : (
+                      <p className="font-semibold text-slate-950">
+                        {pitcher.fullName ?? "Not announced"}
+                      </p>
+                    )}
+                    {pitcher.isInjured && <InjuredBadge />}
+                  </div>
                 </div>
                 {pitcher.throws && (
                   <span className="text-xs font-medium text-slate-500">

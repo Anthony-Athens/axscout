@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import InjuredBadge from "@/components/InjuredBadge";
+
 export type ComparisonRow = {
   label: string;
   teamAValue: string | number;
@@ -9,6 +11,7 @@ export type ComparisonRow = {
 export type LeaderboardPlayer = {
   mlb_player_id: number;
   full_name: string;
+  is_injured?: boolean;
   metrics: Array<{ label: string; value: string | number }>;
 };
 
@@ -138,6 +141,7 @@ export function PlayerLeaderboard({
                 >
                   {player.full_name}
                 </Link>
+                {player.is_injured && <InjuredBadge />}
               </div>
               <dl
                 className={`mt-3 grid gap-2 pl-10 ${

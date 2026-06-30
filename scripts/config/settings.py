@@ -9,6 +9,7 @@ SUPABASE_SERVICE_ROLE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 MLB_SCHEDULE_URL = "https://statsapi.mlb.com/api/v1/schedule"
 MLB_PEOPLE_URL_TEMPLATE = "https://statsapi.mlb.com/api/v1/people/{mlb_player_id}"
 MLB_STATS_URL = "https://statsapi.mlb.com/api/v1/stats"
+MLB_API_URL = "https://statsapi.mlb.com/api/v1"
 
 GAMES_LOOKBACK_DAYS = int(os.getenv("GAMES_LOOKBACK_DAYS", "7"))
 GAMES_LOOKAHEAD_DAYS = int(os.getenv("GAMES_LOOKAHEAD_DAYS", "7"))
@@ -39,6 +40,10 @@ ROLLING_7_START_DATE = os.getenv("ROLLING_7_START_DATE", "").strip() or None
 ROLLING_7_END_DATE = os.getenv("ROLLING_7_END_DATE", "").strip() or None
 ENABLE_PLAYER_ROLLING_7 = (
     os.getenv("ENABLE_PLAYER_ROLLING_7", "true").strip().lower()
+    in {"1", "true", "yes", "on"}
+)
+ENABLE_PLAYER_INJURIES = (
+    os.getenv("ENABLE_PLAYER_INJURIES", "false").strip().lower()
     in {"1", "true", "yes", "on"}
 )
 
