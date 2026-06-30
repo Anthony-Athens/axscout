@@ -62,13 +62,19 @@ def build_team_pitching_updates(rows: list[dict]) -> list[dict]:
             continue
         team = totals.setdefault(
             abbreviation,
-            {"outs": 0, "earned_runs": 0, "walks_and_hits": 0},
+            {
+                "outs": 0,
+                "earned_runs": 0,
+                "walks": 0,
+                "hits_allowed": 0,
+                "strikeouts": 0,
+            },
         )
         team["outs"] += row.get("outs_recorded") or 0
         team["earned_runs"] += row.get("earned_runs") or 0
-        team["walks_and_hits"] += (
-            (row.get("walks") or 0) + (row.get("hits_allowed") or 0)
-        )
+        team["walks"] += row.get("walks") or 0
+        team["hits_allowed"] += row.get("hits_allowed") or 0
+        team["strikeouts"] += row.get("strikeouts") or 0
 
     updates = []
     for abbreviation, team in totals.items():
@@ -79,7 +85,7 @@ def build_team_pitching_updates(rows: list[dict]) -> list[dict]:
             digits=2,
         )
         whip = _rate_from_totals(
-            numerator=team["walks_and_hits"],
+            numerator=team["walks"] + team["hits_allowed"],
             outs_recorded=team["outs"],
             innings_multiplier=3,
             digits=3,
@@ -88,6 +94,11 @@ def build_team_pitching_updates(rows: list[dict]) -> list[dict]:
             updates.append(
                 {
                     "team_abbreviation": abbreviation,
+                    "innings_pitched": round(team["outs"] / 3, 3),
+                    "earned_runs": team["earned_runs"],
+                    "hits_allowed": team["hits_allowed"],
+                    "walks": team["walks"],
+                    "strikeouts": team["strikeouts"],
                     "era": era,
                     "whip": whip,
                 }

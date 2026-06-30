@@ -75,6 +75,10 @@ async function getTodaysGames(supabase: Supabase) {
       home_score,
       away_score,
       status,
+      home_probable_pitcher_mlb_id,
+      home_probable_pitcher_name,
+      away_probable_pitcher_mlb_id,
+      away_probable_pitcher_name,
       home_team:dim_teams!fact_games_home_team_key_fkey(abbreviation),
       away_team:dim_teams!fact_games_away_team_key_fkey(abbreviation)
     `)

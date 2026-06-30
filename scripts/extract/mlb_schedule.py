@@ -9,7 +9,7 @@ def fetch_mlb_schedule(start_date: str, end_date: str) -> dict:
         "gameType": "R",
         "startDate": start_date,
         "endDate": end_date,
-        "hydrate": "team,linescore",
+        "hydrate": "team,linescore,probablePitcher",
     }
 
     response = requests.get(MLB_SCHEDULE_URL, params=params, timeout=60)

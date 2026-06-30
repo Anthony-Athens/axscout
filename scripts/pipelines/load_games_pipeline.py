@@ -3,7 +3,7 @@ from datetime import date
 from scripts.config.settings import GAMES_LOOKAHEAD_DAYS, GAMES_LOOKBACK_DAYS
 
 from scripts.extract.mlb_schedule import fetch_mlb_schedule
-from scripts.load.games import upsert_games
+from scripts.load.games import upsert_games, upsert_probable_pitchers
 from scripts.transform.games import transform_games
 from scripts.utils.date_windows import resolve_games_window
 from scripts.utils.refresh_log import (
@@ -41,15 +41,21 @@ def main() -> None:
         games = transform_games(payload)
         print(f"Game rows extracted and transformed: {len(games)}.")
 
-        records_loaded = upsert_games(games)
-        print(f"Games loaded: {records_loaded}.")
+        games_loaded = upsert_games(games)
+        probable_pitchers_loaded = upsert_probable_pitchers(games)
+        records_loaded = games_loaded + probable_pitchers_loaded
+        print(f"Games loaded: {games_loaded}.")
+        print(f"Probable pitcher dimensions loaded: {probable_pitchers_loaded}.")
 
         mark_refresh_success(
             run_id=run_id,
             records_loaded=records_loaded,
         )
 
-        print(f"Successfully loaded {records_loaded} games.")
+        print(
+            f"Successfully loaded {games_loaded} games and "
+            f"{probable_pitchers_loaded} probable pitcher dimensions."
+        )
 
     except Exception as error:
         mark_refresh_failed(

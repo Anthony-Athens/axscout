@@ -23,6 +23,7 @@ jobs:
       SEASON_START_DATE: "2026-03-27"
       ENABLE_TEAM_WEEKLY_STATCAST: "true"
       ENABLE_PLAYER_STATCAST: "true"
+      ENABLE_PITCHING_SUMMARY: "true"
       PYTHONUNBUFFERED: "1"
 
     steps:

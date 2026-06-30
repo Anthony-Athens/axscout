@@ -57,6 +57,10 @@ def main(season: int | None = None) -> None:
             {"season": target_season, **row}
             for row in build_player_pitching_updates(season_source)
         ]
+        team_season_updates = [
+            {"season": target_season, **row}
+            for row in build_team_pitching_updates(season_source)
+        ]
         player_weekly_updates = []
         team_weekly_updates = []
         for (start_date, _end_date), source_rows in weekly_sources.items():
@@ -79,6 +83,7 @@ def main(season: int | None = None) -> None:
 
         counts = load_pitching_summary(
             targets,
+            team_season_updates,
             player_season_updates,
             player_weekly_updates,
             team_weekly_updates,

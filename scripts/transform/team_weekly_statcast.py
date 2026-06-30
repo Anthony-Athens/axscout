@@ -12,6 +12,7 @@ GROUP_COLUMNS = [
     "week_end_date",
     "team_abbreviation",
 ]
+SEASON_GROUP_COLUMNS = ["season", "team_abbreviation"]
 
 HIT_BASES = {
     "single": 1,
@@ -307,6 +308,118 @@ def build_team_pitching_weekly_rows(data: pd.DataFrame) -> list[dict]:
             ]
         ]
     )
+
+
+def build_team_offense_season_rows(data: pd.DataFrame) -> list[dict]:
+    if data.empty:
+        return []
+
+    offense = data.dropna(subset=["batting_team"]).copy()
+    if offense.empty:
+        return []
+
+    offense = offense.rename(columns={"batting_team": "team_abbreviation"})
+    events = offense.get(
+        "events",
+        pd.Series(pd.NA, index=offense.index, dtype="string"),
+    ).astype("string").str.strip().str.lower()
+    offense["plate_appearance"] = events.notna().astype("int64")
+    offense["hit"] = events.isin(HIT_BASES).astype("int64")
+    offense["total_bases"] = events.map(HIT_BASES).fillna(0).astype("int64")
+    offense["at_bat"] = events.isin(OFFICIAL_AT_BAT_EVENTS).astype("int64")
+    offense["walk"] = events.isin(WALK_EVENTS).astype("int64")
+    offense["hit_by_pitch"] = events.eq("hit_by_pitch").fillna(False).astype("int64")
+    offense["sacrifice_fly"] = events.eq("sac_fly").fillna(False).astype("int64")
+    offense["home_run"] = events.eq("home_run").fillna(False).astype("int64")
+    offense["launch_speed_value"] = _numeric_column(offense, "launch_speed")
+
+    rows = (
+        offense.groupby(SEASON_GROUP_COLUMNS, as_index=False, dropna=False)
+        .agg(
+            plate_appearances=("plate_appearance", "sum"),
+            at_bats=("at_bat", "sum"),
+            hits=("hit", "sum"),
+            home_runs=("home_run", "sum"),
+            walks=("walk", "sum"),
+            hit_by_pitch=("hit_by_pitch", "sum"),
+            sacrifice_flies=("sacrifice_fly", "sum"),
+            total_bases=("total_bases", "sum"),
+            avg_exit_velocity=("launch_speed_value", "mean"),
+        )
+    )
+
+    if {"bat_score", "post_bat_score"}.issubset(offense.columns):
+        before_score = pd.to_numeric(offense["bat_score"], errors="coerce")
+        after_score = pd.to_numeric(offense["post_bat_score"], errors="coerce")
+        offense["runs_on_play"] = (after_score - before_score).clip(lower=0)
+        runs = (
+            offense.groupby(SEASON_GROUP_COLUMNS, as_index=False, dropna=False)
+            .agg(runs=("runs_on_play", lambda values: values.sum(min_count=1)))
+        )
+        rows = rows.merge(runs, on=SEASON_GROUP_COLUMNS, how="left")
+    else:
+        rows["runs"] = None
+
+    at_bats = rows["at_bats"].astype("float64")
+    obp_denominator = (
+        at_bats + rows["walks"] + rows["hit_by_pitch"] + rows["sacrifice_flies"]
+    )
+    rows["batting_average"] = (rows["hits"] / at_bats).where(at_bats > 0).round(3)
+    rows["obp"] = (
+        (rows["hits"] + rows["walks"] + rows["hit_by_pitch"])
+        / obp_denominator
+    ).where(obp_denominator > 0).round(3)
+    rows["slg"] = (rows["total_bases"] / at_bats).where(at_bats > 0).round(3)
+    rows["ops"] = (rows["obp"] + rows["slg"]).round(3)
+    rows["season"] = rows["season"].astype("int64")
+    rows["runs"] = pd.to_numeric(rows["runs"], errors="coerce").round().astype("Int64")
+    rows["avg_exit_velocity"] = rows["avg_exit_velocity"].round(2)
+    return _to_records(rows)
+
+
+def build_team_pitching_season_rows(data: pd.DataFrame) -> list[dict]:
+    if data.empty:
+        return []
+
+    pitching = data.dropna(subset=["pitching_team"]).copy()
+    if pitching.empty:
+        return []
+
+    pitching = pitching.rename(columns={"pitching_team": "team_abbreviation"})
+    events = pitching.get(
+        "events",
+        pd.Series(pd.NA, index=pitching.index, dtype="string"),
+    ).astype("string")
+    pitching["strikeout"] = events.eq("strikeout").fillna(False).astype("int64")
+    pitching["pitch_speed_value"] = _numeric_column(pitching, "release_speed")
+    pitching["spin_rate_value"] = _numeric_column(pitching, "release_spin_rate")
+    rows = (
+        pitching.groupby(SEASON_GROUP_COLUMNS, as_index=False, dropna=False)
+        .agg(
+            strikeouts=("strikeout", "sum"),
+            avg_pitch_speed=("pitch_speed_value", "mean"),
+            avg_spin_rate=("spin_rate_value", "mean"),
+        )
+    )
+    rows["season"] = rows["season"].astype("int64")
+    rows["strikeouts"] = rows["strikeouts"].fillna(0).astype("int64")
+    rows["avg_pitch_speed"] = rows["avg_pitch_speed"].round(2)
+    rows["avg_spin_rate"] = rows["avg_spin_rate"].round(2)
+    return _to_records(rows)
+
+
+def build_team_season_statcast_rows(
+    statcast_data: pd.DataFrame,
+) -> tuple[list[dict], list[dict]]:
+    data = _prepare_data(statcast_data)
+    if data.empty:
+        return [], []
+
+    offense_rows = build_team_offense_season_rows(data)
+    pitching_rows = build_team_pitching_season_rows(data)
+    print(f"Built {len(offense_rows)} team offense season rows.")
+    print(f"Built {len(pitching_rows)} team pitching season rows.")
+    return offense_rows, pitching_rows
 
 
 def build_team_weekly_statcast_rows(

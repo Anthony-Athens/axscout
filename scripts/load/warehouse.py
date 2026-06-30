@@ -23,7 +23,9 @@ def sync_fact_games() -> int:
         "games",
         (
             "mlb_game_pk, game_date, home_team, away_team, home_score, "
-            "away_score, status"
+            "away_score, status, home_probable_pitcher_mlb_id, "
+            "home_probable_pitcher_name, away_probable_pitcher_mlb_id, "
+            "away_probable_pitcher_name"
         ),
         order_by=("mlb_game_pk",),
     )
@@ -57,6 +59,18 @@ def sync_fact_games() -> int:
             "home_score": game["home_score"],
             "away_score": game["away_score"],
             "status": game["status"],
+            "home_probable_pitcher_mlb_id": game[
+                "home_probable_pitcher_mlb_id"
+            ],
+            "home_probable_pitcher_name": game[
+                "home_probable_pitcher_name"
+            ],
+            "away_probable_pitcher_mlb_id": game[
+                "away_probable_pitcher_mlb_id"
+            ],
+            "away_probable_pitcher_name": game[
+                "away_probable_pitcher_name"
+            ],
         })
 
     if not fact_games:

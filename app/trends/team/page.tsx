@@ -47,6 +47,14 @@ type WeeklyOffense = {
   avg_exit_velocity: number | null;
 };
 
+type SeasonOffense = {
+  batting_average: number | null;
+  ops: number | null;
+  home_runs: number | null;
+  runs: number | null;
+  avg_exit_velocity: number | null;
+};
+
 type WeeklyPitching = {
   week_start_date: string;
   strikeouts: number;
@@ -54,6 +62,14 @@ type WeeklyPitching = {
   avg_spin_rate: number | null;
   era: number | null;
   whip: number | null;
+};
+
+type SeasonPitching = {
+  era: number | null;
+  whip: number | null;
+  strikeouts: number | null;
+  avg_pitch_speed: number | null;
+  avg_spin_rate: number | null;
 };
 
 function formatWinningPercentage(value: number | null | undefined) {
@@ -107,6 +123,8 @@ export default async function TeamTrendsPage({
     seasonResult,
     rollingResult,
     recentGamesResult,
+    offenseSeasonResult,
+    pitchingSeasonResult,
     offenseResult,
     pitchingResult,
   ] = await Promise.all([
@@ -134,6 +152,20 @@ export default async function TeamTrendsPage({
       .order("mlb_game_pk", { ascending: false })
       .limit(10),
     supabase
+      .from("agg_team_offense_season")
+      .select("batting_average, ops, home_runs, runs, avg_exit_velocity")
+      .eq("team_abbreviation", selectedAbbreviation)
+      .order("season", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("agg_team_pitching_season")
+      .select("era, whip, strikeouts, avg_pitch_speed, avg_spin_rate")
+      .eq("team_abbreviation", selectedAbbreviation)
+      .order("season", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
       .from("agg_team_offense_weekly")
       .select(
         "week_start_date, batting_average, ops, home_runs, avg_exit_velocity"
@@ -154,10 +186,10 @@ export default async function TeamTrendsPage({
   const season = seasonResult.data as SeasonMetrics | null;
   const rolling = rollingResult.data as RollingMetrics | null;
   const recentGames = (recentGamesResult.data ?? []) as RecentTeamGame[];
+  const seasonOffense = offenseSeasonResult.data as SeasonOffense | null;
+  const seasonPitching = pitchingSeasonResult.data as SeasonPitching | null;
   const offense = ((offenseResult.data ?? []) as WeeklyOffense[]).reverse();
   const pitching = ((pitchingResult.data ?? []) as WeeklyPitching[]).reverse();
-  const latestOffense = offense[offense.length - 1];
-  const latestPitching = pitching[pitching.length - 1];
   const selectedName = selectedTeam?.name ?? selectedAbbreviation;
 
   return (
@@ -220,19 +252,20 @@ export default async function TeamTrendsPage({
             Offensive Statistics
           </h2>
           <p className="mt-1 text-sm text-slate-600">
-            Latest available weekly batting metrics.
+            Season-to-date batting and contact-quality metrics.
           </p>
         </div>
         <DashboardGrid>
           <StatCard
             label="Batting Average"
-            value={formatDecimal(latestOffense?.batting_average, 3)}
+            value={formatDecimal(seasonOffense?.batting_average, 3)}
           />
-          <StatCard label="OPS" value={formatDecimal(latestOffense?.ops, 3)} />
-          <StatCard label="Home Runs" value={latestOffense?.home_runs ?? "--"} />
+          <StatCard label="OPS" value={formatDecimal(seasonOffense?.ops, 3)} />
+          <StatCard label="Home Runs" value={seasonOffense?.home_runs ?? "--"} />
+          <StatCard label="Runs" value={seasonOffense?.runs ?? season?.runs_scored ?? "--"} />
           <StatCard
             label="Avg Exit Velocity"
-            value={formatDecimal(latestOffense?.avg_exit_velocity)}
+            value={formatDecimal(seasonOffense?.avg_exit_velocity, 1)}
             helperText="mph"
           />
         </DashboardGrid>
@@ -244,30 +277,28 @@ export default async function TeamTrendsPage({
             Pitching Statistics
           </h2>
           <p className="mt-1 text-sm text-slate-600">
-            Latest available weekly pitching metrics.
+            Season-to-date official results and Statcast pitch quality.
           </p>
         </div>
         <DashboardGrid>
-          <StatCard label="Strikeouts" value={latestPitching?.strikeouts ?? "--"} />
+          <StatCard label="Strikeouts" value={seasonPitching?.strikeouts ?? "--"} />
           <StatCard
             label="Avg Pitch Speed"
-            value={formatDecimal(latestPitching?.avg_pitch_speed)}
+            value={formatDecimal(seasonPitching?.avg_pitch_speed, 1)}
             helperText="mph"
           />
           <StatCard
             label="Avg Spin Rate"
-            value={formatDecimal(latestPitching?.avg_spin_rate)}
+            value={formatDecimal(seasonPitching?.avg_spin_rate, 0)}
             helperText="rpm"
           />
           <StatCard
             label="ERA"
-            value={latestPitching?.era === null || !latestPitching ? "--" : formatDecimal(latestPitching.era)}
-            helperText={latestPitching?.era === null || !latestPitching ? "Coming soon" : undefined}
+            value={formatDecimal(seasonPitching?.era)}
           />
           <StatCard
             label="WHIP"
-            value={latestPitching?.whip === null || !latestPitching ? "--" : formatDecimal(latestPitching.whip, 3)}
-            helperText={latestPitching?.whip === null || !latestPitching ? "Coming soon" : undefined}
+            value={formatDecimal(seasonPitching?.whip)}
           />
         </DashboardGrid>
       </section>

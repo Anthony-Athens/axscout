@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 
 import PageHeader from "@/components/layout/PageHeader";
 import ExportableScoutingReport from "@/components/ExportableScoutingReport";
+import ProbableStarterCard, {
+  type ProbableStarter,
+} from "@/components/ProbableStarterCard";
 import {
   MetricComparison,
   PlayerLeaderboard,
@@ -121,6 +124,18 @@ type PitchingRankingRow = {
   strikeouts: number | null;
 };
 
+type MatchupGameRow = {
+  mlb_game_pk: number;
+  game_date: string;
+  home_team_key: number;
+  away_team_key: number;
+  status: string | null;
+  home_probable_pitcher_mlb_id: number | null;
+  home_probable_pitcher_name: string | null;
+  away_probable_pitcher_mlb_id: number | null;
+  away_probable_pitcher_name: string | null;
+};
+
 function formatDecimal(value: number | null | undefined, digits = 2) {
   return value === null || value === undefined ? "--" : value.toFixed(digits);
 }
@@ -186,6 +201,26 @@ function coldPitchingSort(
       "descending"
     )
   );
+}
+
+function isoDateWithOffset(days: number) {
+  const value = new Date();
+  value.setUTCHours(0, 0, 0, 0);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+
+function selectMatchupGame(games: MatchupGameRow[]) {
+  const today = isoDateWithOffset(0);
+  const upcoming = games.find(
+    (game) =>
+      game.game_date >= today &&
+      !["Final", "Game Over"].includes(game.status ?? "")
+  );
+  if (upcoming) {
+    return upcoming;
+  }
+  return [...games].reverse().find((game) => game.game_date <= today) ?? null;
 }
 
 function latestSeasonRows<T extends { season: number }>(rows: T[]): T[] {
@@ -366,6 +401,7 @@ export default async function ScoutingReportPage({
     weeklyOffensePlayersBResult,
     weeklyPitchingPlayersAResult,
     weeklyPitchingPlayersBResult,
+    upcomingGamesResult,
     latestRefreshResult,
   ] = await Promise.all([
     supabase
@@ -517,6 +553,19 @@ export default async function ScoutingReportPage({
       .order("week_start_date", { ascending: false })
       .limit(200),
     supabase
+      .from("fact_games")
+      .select(
+        "mlb_game_pk, game_date, home_team_key, away_team_key, status, home_probable_pitcher_mlb_id, home_probable_pitcher_name, away_probable_pitcher_mlb_id, away_probable_pitcher_name"
+      )
+      .or(
+        `home_team_key.in.(${teamA.team_key},${teamB.team_key}),away_team_key.in.(${teamA.team_key},${teamB.team_key})`
+      )
+      .gte("game_date", isoDateWithOffset(0))
+      .lte("game_date", isoDateWithOffset(60))
+      .order("game_date", { ascending: true })
+      .order("mlb_game_pk", { ascending: true })
+      .limit(100),
+    supabase
       .from("data_refresh_runs")
       .select("finished_at")
       .eq("status", "success")
@@ -538,6 +587,34 @@ export default async function ScoutingReportPage({
   const offenseB = offenseRowsB[0] ?? null;
   const pitchingA = pitchingRowsA[0] ?? null;
   const pitchingB = pitchingRowsB[0] ?? null;
+  const upcomingGames = (upcomingGamesResult.data ?? []) as MatchupGameRow[];
+  const gamesForTeam = (teamKey: number) =>
+    upcomingGames
+      .filter(
+        (game) =>
+          game.home_team_key === teamKey || game.away_team_key === teamKey
+      )
+      .slice(0, 3);
+  const starterGamesA = gamesForTeam(teamA.team_key);
+  const starterGamesB = gamesForTeam(teamB.team_key);
+  const selectedMatchupGame = selectMatchupGame(
+    upcomingGames.filter(
+      (game) =>
+        (game.home_team_key === teamA.team_key &&
+          game.away_team_key === teamB.team_key) ||
+        (game.home_team_key === teamB.team_key &&
+          game.away_team_key === teamA.team_key)
+    )
+  );
+  const probablePitcherIds = [...starterGamesA, ...starterGamesB]
+    .flatMap((game) => [
+      game.home_probable_pitcher_mlb_id,
+      game.away_probable_pitcher_mlb_id,
+    ])
+    .filter(
+      (playerId): playerId is number =>
+        playerId !== null && playerId !== undefined
+    );
   const minimumSeasonPlateAppearancesA = qualificationMinimum(
     seasonA?.games_played,
     2.5
@@ -660,12 +737,20 @@ export default async function ScoutingReportPage({
     ...coldPitchingA,
     ...coldPitchingB,
   ].map((player) => player.mlb_player_id);
+  playerIds.push(...probablePitcherIds);
   const uniquePlayerIds = [...new Set(playerIds)];
   const { data: playerDimensions } = uniquePlayerIds.length
     ? await supabase
         .from("dim_players")
-        .select("mlb_player_id, full_name")
+        .select("mlb_player_id, full_name, throws")
         .in("mlb_player_id", uniquePlayerIds)
+    : { data: [] };
+  const { data: probablePitchingRows } = probablePitcherIds.length
+    ? await supabase
+        .from("agg_player_pitching_season")
+        .select("season, mlb_player_id, era, whip, strikeouts")
+        .in("mlb_player_id", probablePitcherIds)
+        .order("season", { ascending: false })
     : { data: [] };
   const playerNames = new Map(
     (playerDimensions ?? []).map((player) => [
@@ -673,8 +758,62 @@ export default async function ScoutingReportPage({
       player.full_name,
     ])
   );
+  const playerThrows = new Map(
+    (playerDimensions ?? []).map((player) => [
+      player.mlb_player_id,
+      player.throws,
+    ])
+  );
+  const probablePitchingById = new Map<
+    number,
+    { era: number | null; whip: number | null; strikeouts: number | null }
+  >();
+  for (const row of probablePitchingRows ?? []) {
+    if (!probablePitchingById.has(row.mlb_player_id)) {
+      probablePitchingById.set(row.mlb_player_id, row);
+    }
+  }
   const playerName = (playerId: number) =>
     playerNames.get(playerId) ?? `Player ${playerId}`;
+  const teamByKey = new Map(teams.map((team) => [team.team_key, team]));
+  const probableStartersForTeam = (
+    teamKey: number,
+    games: MatchupGameRow[]
+  ): ProbableStarter[] =>
+    games.map((game) => {
+      const isHome = game.home_team_key === teamKey;
+      const opponentKey = isHome ? game.away_team_key : game.home_team_key;
+      const playerId = isHome
+        ? game.home_probable_pitcher_mlb_id
+        : game.away_probable_pitcher_mlb_id;
+      const scheduleName = isHome
+        ? game.home_probable_pitcher_name
+        : game.away_probable_pitcher_name;
+      const stats = playerId ? probablePitchingById.get(playerId) : null;
+      return {
+        mlbGamePk: game.mlb_game_pk,
+        gameDate: game.game_date,
+        opponentAbbreviation:
+          teamByKey.get(opponentKey)?.abbreviation ?? "TBD",
+        isHome,
+        mlbPlayerId: playerId,
+        fullName: playerId
+          ? playerNames.get(playerId) ?? scheduleName
+          : scheduleName,
+        throws: playerId ? playerThrows.get(playerId) ?? null : null,
+        era: stats?.era ?? null,
+        whip: stats?.whip ?? null,
+        strikeouts: stats?.strikeouts ?? null,
+      };
+    });
+  const probableStartersA = probableStartersForTeam(
+    teamA.team_key,
+    starterGamesA
+  );
+  const probableStartersB = probableStartersForTeam(
+    teamB.team_key,
+    starterGamesB
+  );
   const offenseLeaders = (rows: OffensePlayerRow[]): LeaderboardPlayer[] =>
     rows.map((player) => ({
       mlb_player_id: player.mlb_player_id,
@@ -793,7 +932,7 @@ export default async function ScoutingReportPage({
     }));
   const exportReportData: ScoutingReportData = {
     matchup: `${teamA.name} vs ${teamB.name}`,
-    gameDate: null,
+    gameDate: selectedMatchupGame?.game_date ?? null,
     latestRefreshAt: latestRefreshResult.data?.finished_at ?? null,
     teamA: {
       side: "Team A",
@@ -910,6 +1049,34 @@ export default async function ScoutingReportPage({
           teamB={abbreviationB}
         />
       </SectionCard>
+
+      <section className="mt-8" aria-labelledby="expected-starters-heading">
+        <div className="mb-5">
+          <h2
+            id="expected-starters-heading"
+            className="text-xl font-semibold text-slate-900"
+          >
+            Expected Starting Pitchers
+          </h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Next 3 expected starters for each selected team.
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <ProbableStarterCard
+            side="Team A"
+            teamName={teamA.name}
+            abbreviation={abbreviationA}
+            starters={probableStartersA}
+          />
+          <ProbableStarterCard
+            side="Team B"
+            teamName={teamB.name}
+            abbreviation={abbreviationB}
+            starters={probableStartersB}
+          />
+        </div>
+      </section>
 
       <section className="mt-8" aria-labelledby="season-comparison-heading">
         <div className="mb-5">

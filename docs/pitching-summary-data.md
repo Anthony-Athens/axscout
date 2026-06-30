@@ -45,7 +45,7 @@ The flag defaults to `false`. All official source requests complete before aggre
 
 ## Limitations
 
-There is no `agg_team_pitching_season` table in the current schema, so the pipeline does not store team season ERA, WHIP, or strikeouts. A future dedicated team pitching season table is recommended if the product needs a true season-level pitching snapshot separate from the latest weekly row.
+`agg_team_pitching_season` stores official season innings, earned runs, hits allowed, walks, strikeouts, ERA, and WHIP. Full-season Statcast processing supplies average pitch speed and spin rate on the same row. Weekly ERA and WHIP remain date-range summaries in `agg_team_pitching_weekly` and are used only by weekly trend views.
 
 The pipeline enriches only existing Statcast aggregate rows. It does not create partial player or team aggregates when a matching row is absent, and it does not replace Statcast metrics with official summary values.
 
