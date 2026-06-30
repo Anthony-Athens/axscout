@@ -13,7 +13,8 @@ verified the current user.
   row.
 - When email confirmation is enabled, Supabase redirects to
   `/auth/callback`. The route exchanges the PKCE code for a cookie-backed
-  session and then redirects to `/dashboard`.
+  session and then redirects to `/login?confirmed=true` with a friendly
+  confirmation message.
 - `/login` validates credentials in a Server Action and calls
   `signInWithPassword()`.
 - Logout calls `signOut()`, invalidates the rendered layout, and redirects to
@@ -23,8 +24,10 @@ Set `NEXT_PUBLIC_SITE_URL` to the production origin in Vercel. Add both the
 production callback URL and local callback URL to Supabase Auth redirect URLs:
 
 ```text
-https://your-domain.example/auth/callback
+https://www.axscout.com/auth/callback
+https://axscout.com/auth/callback
 http://localhost:3000/auth/callback
+http://localhost:3001/auth/callback
 ```
 
 ## Session management

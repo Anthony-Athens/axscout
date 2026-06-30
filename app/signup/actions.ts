@@ -41,7 +41,7 @@ export async function signup(
     password,
     options: {
       data: { full_name: fullName },
-      emailRedirectTo: `${siteUrl}/auth/callback?next=/dashboard`,
+      emailRedirectTo: `${siteUrl}/auth/callback`,
     },
   });
 
@@ -53,7 +53,8 @@ export async function signup(
     redirect("/dashboard");
   }
 
-  redirect(
-    "/login?message=Check%20your%20email%20to%20confirm%20your%20account."
-  );
+  const message =
+    "Check your email to confirm your account. The confirmation link will " +
+    "redirect back to AXScout. After confirming, return here to log in.";
+  redirect(`/login?message=${encodeURIComponent(message)}`);
 }
