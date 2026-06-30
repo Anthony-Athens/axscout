@@ -1,16 +1,16 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 
 import PageHeader from "@/components/layout/PageHeader";
 import { getPublishedPosts } from "@/lib/blog";
+import { createPageMetadata } from "@/lib/metadata";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata: Metadata = {
+export const metadata = createPageMetadata({
   title: "Blog",
   description:
-    "AXScout baseball analysis, Statcast research, scouting insights, and product updates.",
-  alternates: { canonical: "/blog" },
-};
+    "Read AXScout updates, MLB analytics articles, scouting report examples, prediction notes, and baseball intelligence product updates.",
+  path: "/blog",
+});
 
 function formatDate(value: string | null) {
   if (!value) {
@@ -61,7 +61,7 @@ export default async function BlogPage() {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={post.cover_image_url}
-                  alt=""
+                  alt={`${post.title} cover`}
                   className="aspect-[16/9] w-full object-cover"
                   loading="lazy"
                 />

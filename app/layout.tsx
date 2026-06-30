@@ -23,19 +23,21 @@ export const metadata: Metadata = {
     template: "%s | AXScout",
   },
   description:
-    "AXScout is a baseball intelligence platform delivering advanced team analytics, player intelligence, scouting reports, Statcast insights, and data-driven MLB analysis.",
+    "AXScout is a baseball intelligence platform delivering advanced team analytics, player intelligence, scouting reports, Statcast insights, predictions, and data-driven MLB analysis.",
+  alternates: { canonical: SITE_URL },
   openGraph: {
     title: "AXScout | Baseball Intelligence Platform",
     description:
-      "Team intelligence, player analytics, scouting reports, Statcast trends, and data-driven MLB insights.",
+      "AXScout is a baseball intelligence platform delivering advanced team analytics, player intelligence, scouting reports, Statcast insights, predictions, and data-driven MLB analysis.",
     siteName: "AXScout",
     type: "website",
+    url: SITE_URL,
   },
   twitter: {
     card: "summary_large_image",
     title: "AXScout | Baseball Intelligence Platform",
     description:
-      "Baseball intelligence powered by Statcast, advanced analytics, and machine learning.",
+      "AXScout is a baseball intelligence platform delivering advanced team analytics, player intelligence, scouting reports, Statcast insights, predictions, and data-driven MLB analysis.",
   },
 };
 

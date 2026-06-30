@@ -1,17 +1,16 @@
-import type { Metadata } from "next";
-
 import PageHeader from "@/components/layout/PageHeader";
 import DashboardGrid from "@/components/ui/DashboardGrid";
 import SectionCard from "@/components/ui/SectionCard";
 import StatCard from "@/components/ui/StatCard";
+import { createPageMetadata } from "@/lib/metadata";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata: Metadata = {
+export const metadata = createPageMetadata({
   title: "Predictions",
   description:
-    "MLB game predictions, model-driven forecasts, matchup signals, and market-aware baseball intelligence from AXScout.",
-  alternates: { canonical: "/predictions" },
-};
+    "View experimental MLB game predictions, market lines, expected starters, injury context, confidence levels, and model performance tracking.",
+  path: "/predictions",
+});
 
 type NumericValue = number | string | null;
 

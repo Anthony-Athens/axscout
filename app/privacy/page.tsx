@@ -1,13 +1,13 @@
-import type { Metadata } from "next";
-
 import PageHeader from "@/components/layout/PageHeader";
 import SectionCard from "@/components/ui/SectionCard";
+import { createPageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
+export const metadata = createPageMetadata({
   title: "Privacy",
-  description: "How AXScout handles account details, contact submissions, and service data.",
-  alternates: { canonical: "/privacy" },
-};
+  description:
+    "Learn how AXScout handles account information, contact submissions, authentication data, and analytics usage.",
+  path: "/privacy",
+});
 
 export default function PrivacyPage() {
   return (

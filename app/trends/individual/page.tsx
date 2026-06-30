@@ -1,5 +1,3 @@
-import type { Metadata } from "next";
-
 import WeeklyMetricChart, {
   type WeeklyMetricPoint,
 } from "@/components/charts/WeeklyMetricChart";
@@ -11,14 +9,15 @@ import DashboardGrid from "@/components/ui/DashboardGrid";
 import EmptyState from "@/components/ui/EmptyState";
 import SectionCard from "@/components/ui/SectionCard";
 import StatCard from "@/components/ui/StatCard";
+import { createPageMetadata } from "@/lib/metadata";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata: Metadata = {
+export const metadata = createPageMetadata({
   title: "Player Trends",
   description:
-    "Explore MLB player season statistics and weekly offensive and pitching Statcast trends in AXScout.",
-  alternates: { canonical: "/trends/individual" },
-};
+    "Explore MLB player trends, offensive metrics, pitching metrics, Statcast indicators, and player performance insights.",
+  path: "/trends/individual",
+});
 
 const PLAYER_PAGE_SIZE = 1000;
 

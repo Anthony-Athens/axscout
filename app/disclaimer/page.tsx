@@ -1,13 +1,13 @@
-import type { Metadata } from "next";
-
 import PageHeader from "@/components/layout/PageHeader";
 import SectionCard from "@/components/ui/SectionCard";
+import { createPageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
+export const metadata = createPageMetadata({
   title: "Disclaimer",
-  description: "Important limitations and beta disclosures for AXScout analytics and reports.",
-  alternates: { canonical: "/disclaimer" },
-};
+  description:
+    "Review important informational-use, data accuracy, prediction, and public beta limitations for AXScout analytics and reports.",
+  path: "/disclaimer",
+});
 
 export default function DisclaimerPage() {
   return (

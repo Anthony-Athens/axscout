@@ -1,15 +1,14 @@
-import type { Metadata } from "next";
-
 import ContactForm from "@/app/contact/ContactForm";
 import PageHeader from "@/components/layout/PageHeader";
 import SectionCard from "@/components/ui/SectionCard";
+import { createPageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
+export const metadata = createPageMetadata({
   title: "Contact",
   description:
-    "Contact AXScout to request baseball analysis, report a bug, suggest a data idea, or discuss collaboration.",
-  alternates: { canonical: "/contact" },
-};
+    "Contact AXScout for feedback, collaboration, bug reports, product ideas, and baseball analytics inquiries.",
+  path: "/contact",
+});
 
 export default function ContactPage() {
   return (

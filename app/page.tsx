@@ -1,13 +1,57 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 
+import JsonLd from "@/components/seo/JsonLd";
 import PageHeader from "@/components/layout/PageHeader";
 import DashboardGrid from "@/components/ui/DashboardGrid";
 import SectionCard from "@/components/ui/SectionCard";
 import StatCard from "@/components/ui/StatCard";
+import { createPageMetadata } from "@/lib/metadata";
+import { SITE_URL } from "@/lib/site";
 
-export const metadata: Metadata = {
-  alternates: { canonical: "/" },
+const description =
+  "Explore MLB team trends, player analytics, scouting reports, predictions, injuries, expected starters, and market-aware baseball insights with AXScout.";
+
+const pageMetadata = createPageMetadata({
+  title: "Baseball Intelligence Platform",
+  description,
+  path: "/",
+});
+
+export const metadata = {
+  ...pageMetadata,
+  title: { absolute: "Baseball Intelligence Platform | AXScout" },
+};
+
+const structuredData = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": `${SITE_URL}/#website`,
+      name: "AXScout",
+      url: SITE_URL,
+      description,
+      publisher: { "@id": `${SITE_URL}/#organization` },
+    },
+    {
+      "@type": "Organization",
+      "@id": `${SITE_URL}/#organization`,
+      name: "AXScout",
+      url: SITE_URL,
+      description: "A baseball intelligence platform for MLB analytics.",
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": `${SITE_URL}/#application`,
+      name: "AXScout",
+      url: SITE_URL,
+      description,
+      applicationCategory: "SportsApplication",
+      operatingSystem: "Web",
+      isAccessibleForFree: true,
+      publisher: { "@id": `${SITE_URL}/#organization` },
+    },
+  ],
 };
 
 const capabilities = [
@@ -95,6 +139,7 @@ function PillList({ items }: { items: string[] }) {
 export default function Home() {
   return (
     <div className="space-y-10">
+      <JsonLd data={structuredData} />
       <section className="rounded-xl border border-slate-200 bg-white px-6 py-10 shadow-sm sm:px-8 lg:px-10">
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.7fr)] lg:items-center">
           <div>

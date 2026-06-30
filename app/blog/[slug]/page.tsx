@@ -3,7 +3,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import MarkdownArticle from "@/components/blog/MarkdownArticle";
+import JsonLd from "@/components/seo/JsonLd";
 import { getPublishedPostBySlug } from "@/lib/blog";
+import { blogPostDescription } from "@/lib/blog-seo";
+import { absoluteUrl } from "@/lib/metadata";
 
 type BlogPostPageProps = {
   params: Promise<{ slug: string }>;
@@ -24,21 +27,35 @@ export async function generateMetadata({
   const { slug } = await params;
   const post = await getPublishedPostBySlug(slug);
   if (!post) {
-    return { title: "Article Not Found" };
+    return {
+      title: "Article Not Found",
+      robots: { index: false, follow: false },
+    };
   }
-  const description =
-    post.excerpt ?? post.subtitle ?? `Read ${post.title} on AXScout.`;
+  const description = blogPostDescription(post);
+  const url = absoluteUrl(`/blog/${post.slug}`);
 
   return {
     title: post.title,
     description,
-    alternates: { canonical: `/blog/${post.slug}` },
+    keywords: post.tags ?? undefined,
+    alternates: { canonical: url },
     openGraph: {
       title: post.title,
       description,
+      siteName: "AXScout",
       type: "article",
+      url,
       publishedTime: post.published_at ?? undefined,
+      modifiedTime: post.updated_at,
       authors: post.author_name ? [post.author_name] : undefined,
+      tags: post.tags ?? undefined,
+      images: post.cover_image_url ? [post.cover_image_url] : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: post.title,
+      description,
       images: post.cover_image_url ? [post.cover_image_url] : undefined,
     },
   };
@@ -50,9 +67,34 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   if (!post) {
     notFound();
   }
+  const description = blogPostDescription(post);
+  const url = absoluteUrl(`/blog/${post.slug}`);
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: post.title,
+    description,
+    url,
+    mainEntityOfPage: url,
+    image: post.cover_image_url || undefined,
+    datePublished: post.published_at || undefined,
+    dateModified: post.updated_at,
+    author: {
+      "@type": post.author_name ? "Person" : "Organization",
+      name: post.author_name ?? "AXScout",
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "AXScout",
+      url: absoluteUrl("/"),
+    },
+    keywords: post.tags?.length ? post.tags.join(", ") : undefined,
+    inLanguage: "en-US",
+  };
 
   return (
     <article className="mx-auto max-w-4xl">
+      <JsonLd data={structuredData} />
       <Link
         href="/blog"
         className="text-sm font-semibold text-blue-700 hover:text-blue-800"
@@ -98,7 +140,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={post.cover_image_url}
-          alt=""
+          alt={`${post.title} cover`}
           className="mt-8 aspect-[16/9] w-full rounded-lg border border-slate-200 object-cover shadow-sm"
         />
       ) : null}

@@ -1,5 +1,3 @@
-import type { Metadata } from "next";
-
 import WeeklyMetricChart, {
   type WeeklyMetricPoint,
 } from "@/components/charts/WeeklyMetricChart";
@@ -13,14 +11,15 @@ import TeamTrendsFilter, {
 import DashboardGrid from "@/components/ui/DashboardGrid";
 import SectionCard from "@/components/ui/SectionCard";
 import StatCard from "@/components/ui/StatCard";
+import { createPageMetadata } from "@/lib/metadata";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata: Metadata = {
+export const metadata = createPageMetadata({
   title: "Team Trends",
   description:
-    "Explore MLB team season performance, rolling form, weekly offense, pitching, and Statcast trends.",
-  alternates: { canonical: "/trends/team" },
-};
+    "Analyze MLB team performance, season metrics, rolling form, offensive trends, pitching trends, and Statcast-powered team insights.",
+  path: "/trends/team",
+});
 
 const DEFAULT_TEAM = "PIT";
 

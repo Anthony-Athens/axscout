@@ -9,9 +9,9 @@ export default function MarkdownArticle({ content }: { content: string }) {
       remarkPlugins={[remarkGfm]}
       components={{
         h1: ({ children }) => (
-          <h1 className="mt-10 text-3xl font-bold text-slate-950 first:mt-0">
+          <h2 className="mt-10 text-3xl font-bold text-slate-950 first:mt-0">
             {children}
-          </h1>
+          </h2>
         ),
         h2: ({ children }) => (
           <h2 className="mt-10 text-2xl font-bold text-slate-950">

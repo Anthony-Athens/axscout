@@ -1,13 +1,13 @@
-import type { Metadata } from "next";
-
 import PageHeader from "@/components/layout/PageHeader";
 import SectionCard from "@/components/ui/SectionCard";
+import { createPageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
+export const metadata = createPageMetadata({
   title: "Terms",
-  description: "Terms for acceptable use of the AXScout public beta platform.",
-  alternates: { canonical: "/terms" },
-};
+  description:
+    "Review the terms for acceptable use, data access, accuracy limitations, and liability for the AXScout public beta.",
+  path: "/terms",
+});
 
 export default function TermsPage() {
   return (
