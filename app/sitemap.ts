@@ -10,7 +10,7 @@ const publicRoutes = [
   { path: "/scouting-report", changeFrequency: "daily" as const, priority: 0.8 },
   { path: "/contact", changeFrequency: "monthly" as const, priority: 0.5 },
   { path: "/blog", changeFrequency: "weekly" as const, priority: 0.5 },
-  { path: "/betting", changeFrequency: "monthly" as const, priority: 0.3 },
+  { path: "/predictions", changeFrequency: "weekly" as const, priority: 0.5 },
   { path: "/privacy", changeFrequency: "yearly" as const, priority: 0.2 },
   { path: "/terms", changeFrequency: "yearly" as const, priority: 0.2 },
   { path: "/disclaimer", changeFrequency: "yearly" as const, priority: 0.2 },

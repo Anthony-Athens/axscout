@@ -57,7 +57,7 @@ const betaFeatures = [
 const comingSoon = [
   "Expected starters",
   "Injury and player status data",
-  "Betting lines",
+  "Market line comparison",
   "Rules-based predictions",
   "Machine learning prediction model",
 ];
