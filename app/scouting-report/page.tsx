@@ -77,18 +77,21 @@ type SeasonPitching = {
   avg_spin_rate: number | null;
 };
 
-type WeeklyOffense = {
+type Rolling7TeamOffense = {
   season: number;
-  week_start_date: string;
+  window_start_date: string;
+  window_end_date: string;
   batting_average: number | null;
   ops: number | null;
   home_runs: number | null;
+  runs: number | null;
   avg_exit_velocity: number | null;
 };
 
-type WeeklyPitching = {
+type Rolling7TeamPitching = {
   season: number;
-  week_start_date: string;
+  window_start_date: string;
+  window_end_date: string;
   strikeouts: number | null;
   avg_pitch_speed: number | null;
   avg_spin_rate: number | null;
@@ -500,10 +503,10 @@ export default async function ScoutingReportPage({
     seasonPitchingBResult,
     rollingAResult,
     rollingBResult,
-    weeklyOffenseAResult,
-    weeklyOffenseBResult,
-    weeklyPitchingAResult,
-    weeklyPitchingBResult,
+    rolling7TeamOffenseAResult,
+    rolling7TeamOffenseBResult,
+    rolling7TeamPitchingAResult,
+    rolling7TeamPitchingBResult,
     offensePlayersAResult,
     offensePlayersBResult,
     pitchingPlayersAResult,
@@ -581,40 +584,40 @@ export default async function ScoutingReportPage({
       .limit(1)
       .maybeSingle(),
     supabase
-      .from("agg_team_offense_weekly")
+      .from("agg_team_offense_rolling_7")
       .select(
-        "season, week_start_date, batting_average, ops, home_runs, avg_exit_velocity"
+        "season, window_start_date, window_end_date, batting_average, ops, home_runs, runs, avg_exit_velocity"
       )
       .eq("team_abbreviation", abbreviationA)
       .order("season", { ascending: false })
-      .order("week_start_date", { ascending: false })
+      .order("window_end_date", { ascending: false })
       .limit(1),
     supabase
-      .from("agg_team_offense_weekly")
+      .from("agg_team_offense_rolling_7")
       .select(
-        "season, week_start_date, batting_average, ops, home_runs, avg_exit_velocity"
+        "season, window_start_date, window_end_date, batting_average, ops, home_runs, runs, avg_exit_velocity"
       )
       .eq("team_abbreviation", abbreviationB)
       .order("season", { ascending: false })
-      .order("week_start_date", { ascending: false })
+      .order("window_end_date", { ascending: false })
       .limit(1),
     supabase
-      .from("agg_team_pitching_weekly")
+      .from("agg_team_pitching_rolling_7")
       .select(
-        "season, week_start_date, strikeouts, avg_pitch_speed, avg_spin_rate, era, whip"
+        "season, window_start_date, window_end_date, strikeouts, avg_pitch_speed, avg_spin_rate, era, whip"
       )
       .eq("team_abbreviation", abbreviationA)
       .order("season", { ascending: false })
-      .order("week_start_date", { ascending: false })
+      .order("window_end_date", { ascending: false })
       .limit(1),
     supabase
-      .from("agg_team_pitching_weekly")
+      .from("agg_team_pitching_rolling_7")
       .select(
-        "season, week_start_date, strikeouts, avg_pitch_speed, avg_spin_rate, era, whip"
+        "season, window_start_date, window_end_date, strikeouts, avg_pitch_speed, avg_spin_rate, era, whip"
       )
       .eq("team_abbreviation", abbreviationB)
       .order("season", { ascending: false })
-      .order("week_start_date", { ascending: false })
+      .order("window_end_date", { ascending: false })
       .limit(1),
     supabase
       .from("agg_player_offense_season")
@@ -732,14 +735,18 @@ export default async function ScoutingReportPage({
   const seasonPitchingB = seasonPitchingBResult.data as SeasonPitching | null;
   const rollingA = rollingAResult.data as RollingMetrics | null;
   const rollingB = rollingBResult.data as RollingMetrics | null;
-  const weeklyOffenseRowsA = (weeklyOffenseAResult.data ?? []) as WeeklyOffense[];
-  const weeklyOffenseRowsB = (weeklyOffenseBResult.data ?? []) as WeeklyOffense[];
-  const weeklyPitchingRowsA = (weeklyPitchingAResult.data ?? []) as WeeklyPitching[];
-  const weeklyPitchingRowsB = (weeklyPitchingBResult.data ?? []) as WeeklyPitching[];
-  const weeklyOffenseA = weeklyOffenseRowsA[0] ?? null;
-  const weeklyOffenseB = weeklyOffenseRowsB[0] ?? null;
-  const weeklyPitchingA = weeklyPitchingRowsA[0] ?? null;
-  const weeklyPitchingB = weeklyPitchingRowsB[0] ?? null;
+  const rolling7TeamOffenseRowsA = (rolling7TeamOffenseAResult.data ??
+    []) as Rolling7TeamOffense[];
+  const rolling7TeamOffenseRowsB = (rolling7TeamOffenseBResult.data ??
+    []) as Rolling7TeamOffense[];
+  const rolling7TeamPitchingRowsA = (rolling7TeamPitchingAResult.data ??
+    []) as Rolling7TeamPitching[];
+  const rolling7TeamPitchingRowsB = (rolling7TeamPitchingBResult.data ??
+    []) as Rolling7TeamPitching[];
+  const rolling7TeamOffenseA = rolling7TeamOffenseRowsA[0] ?? null;
+  const rolling7TeamOffenseB = rolling7TeamOffenseRowsB[0] ?? null;
+  const rolling7TeamPitchingA = rolling7TeamPitchingRowsA[0] ?? null;
+  const rolling7TeamPitchingB = rolling7TeamPitchingRowsB[0] ?? null;
   const injuryRows = (injuriesResult.data ?? []) as InjuryRow[];
   const injuriesForTeam = (abbreviation: string): InjuryReportItem[] =>
     injuryRows
@@ -1170,21 +1177,22 @@ export default async function ScoutingReportPage({
             whip: seasonPitchingA.whip,
           }
         : null,
-      offense: weeklyOffenseA
+      rolling7Offense: rolling7TeamOffenseA
         ? {
-            battingAverage: weeklyOffenseA.batting_average,
-            ops: weeklyOffenseA.ops,
-            homeRuns: weeklyOffenseA.home_runs,
-            avgExitVelocity: weeklyOffenseA.avg_exit_velocity,
+            battingAverage: rolling7TeamOffenseA.batting_average,
+            ops: rolling7TeamOffenseA.ops,
+            homeRuns: rolling7TeamOffenseA.home_runs,
+            runs: rolling7TeamOffenseA.runs,
+            avgExitVelocity: rolling7TeamOffenseA.avg_exit_velocity,
           }
         : null,
-      pitching: weeklyPitchingA
+      rolling7Pitching: rolling7TeamPitchingA
         ? {
-            strikeouts: weeklyPitchingA.strikeouts,
-            avgPitchSpeed: weeklyPitchingA.avg_pitch_speed,
-            avgSpinRate: weeklyPitchingA.avg_spin_rate,
-            era: weeklyPitchingA.era,
-            whip: weeklyPitchingA.whip,
+            strikeouts: rolling7TeamPitchingA.strikeouts,
+            avgPitchSpeed: rolling7TeamPitchingA.avg_pitch_speed,
+            avgSpinRate: rolling7TeamPitchingA.avg_spin_rate,
+            era: rolling7TeamPitchingA.era,
+            whip: rolling7TeamPitchingA.whip,
           }
         : null,
       seasonOffenseLeaders: reportOffensePlayers(offensePlayersA),
@@ -1247,21 +1255,22 @@ export default async function ScoutingReportPage({
             whip: seasonPitchingB.whip,
           }
         : null,
-      offense: weeklyOffenseB
+      rolling7Offense: rolling7TeamOffenseB
         ? {
-            battingAverage: weeklyOffenseB.batting_average,
-            ops: weeklyOffenseB.ops,
-            homeRuns: weeklyOffenseB.home_runs,
-            avgExitVelocity: weeklyOffenseB.avg_exit_velocity,
+            battingAverage: rolling7TeamOffenseB.batting_average,
+            ops: rolling7TeamOffenseB.ops,
+            homeRuns: rolling7TeamOffenseB.home_runs,
+            runs: rolling7TeamOffenseB.runs,
+            avgExitVelocity: rolling7TeamOffenseB.avg_exit_velocity,
           }
         : null,
-      pitching: weeklyPitchingB
+      rolling7Pitching: rolling7TeamPitchingB
         ? {
-            strikeouts: weeklyPitchingB.strikeouts,
-            avgPitchSpeed: weeklyPitchingB.avg_pitch_speed,
-            avgSpinRate: weeklyPitchingB.avg_spin_rate,
-            era: weeklyPitchingB.era,
-            whip: weeklyPitchingB.whip,
+            strikeouts: rolling7TeamPitchingB.strikeouts,
+            avgPitchSpeed: rolling7TeamPitchingB.avg_pitch_speed,
+            avgSpinRate: rolling7TeamPitchingB.avg_spin_rate,
+            era: rolling7TeamPitchingB.era,
+            whip: rolling7TeamPitchingB.whip,
           }
         : null,
       seasonOffenseLeaders: reportOffensePlayers(offensePlayersB),
@@ -1420,10 +1429,10 @@ export default async function ScoutingReportPage({
             id="offense-comparison-heading"
             className="text-xl font-semibold text-slate-900"
           >
-            Offensive Comparison
+            Offensive Comparison - Last 7 Days
           </h2>
           <p className="mt-1 text-sm text-slate-600">
-            Latest available weekly offense metrics.
+            Rolling team offense across the latest seven calendar days.
           </p>
         </div>
         <MetricComparison
@@ -1432,29 +1441,40 @@ export default async function ScoutingReportPage({
           rows={[
             {
               label: "BA",
-              teamAValue: formatDecimal(weeklyOffenseA?.batting_average, 3),
-              teamBValue: formatDecimal(weeklyOffenseB?.batting_average, 3),
+              teamAValue: formatBaseballRate(
+                rolling7TeamOffenseA?.batting_average
+              ),
+              teamBValue: formatBaseballRate(
+                rolling7TeamOffenseB?.batting_average
+              ),
             },
             {
               label: "OPS",
-              teamAValue: formatDecimal(weeklyOffenseA?.ops, 3),
-              teamBValue: formatDecimal(weeklyOffenseB?.ops, 3),
+              teamAValue: formatBaseballRate(rolling7TeamOffenseA?.ops),
+              teamBValue: formatBaseballRate(rolling7TeamOffenseB?.ops),
             },
             {
               label: "HR",
-              teamAValue: formatInteger(weeklyOffenseA?.home_runs),
-              teamBValue: formatInteger(weeklyOffenseB?.home_runs),
+              teamAValue: formatInteger(rolling7TeamOffenseA?.home_runs),
+              teamBValue: formatInteger(rolling7TeamOffenseB?.home_runs),
+            },
+            {
+              label: "Runs",
+              teamAValue: formatInteger(rolling7TeamOffenseA?.runs),
+              teamBValue: formatInteger(rolling7TeamOffenseB?.runs),
             },
             {
               label: "Avg Exit Velocity",
               teamAValue:
-                weeklyOffenseA?.avg_exit_velocity === null || !weeklyOffenseA
+                rolling7TeamOffenseA?.avg_exit_velocity === null ||
+                !rolling7TeamOffenseA
                   ? "--"
-                  : `${formatDecimal(weeklyOffenseA.avg_exit_velocity, 1)} mph`,
+                  : `${formatDecimal(rolling7TeamOffenseA.avg_exit_velocity, 1)} mph`,
               teamBValue:
-                weeklyOffenseB?.avg_exit_velocity === null || !weeklyOffenseB
+                rolling7TeamOffenseB?.avg_exit_velocity === null ||
+                !rolling7TeamOffenseB
                   ? "--"
-                  : `${formatDecimal(weeklyOffenseB.avg_exit_velocity, 1)} mph`,
+                  : `${formatDecimal(rolling7TeamOffenseB.avg_exit_velocity, 1)} mph`,
             },
           ]}
         />
@@ -1466,10 +1486,10 @@ export default async function ScoutingReportPage({
             id="pitching-comparison-heading"
             className="text-xl font-semibold text-slate-900"
           >
-            Pitching Comparison
+            Pitching Comparison - Last 7 Days
           </h2>
           <p className="mt-1 text-sm text-slate-600">
-            Latest available weekly pitching metrics.
+            Rolling team pitching across the latest seven calendar days.
           </p>
         </div>
         <MetricComparison
@@ -1478,52 +1498,58 @@ export default async function ScoutingReportPage({
           rows={[
             {
               label: "Strikeouts",
-              teamAValue: formatInteger(weeklyPitchingA?.strikeouts),
-              teamBValue: formatInteger(weeklyPitchingB?.strikeouts),
+              teamAValue: formatInteger(rolling7TeamPitchingA?.strikeouts),
+              teamBValue: formatInteger(rolling7TeamPitchingB?.strikeouts),
             },
             {
               label: "Avg Pitch Speed",
               teamAValue:
-                weeklyPitchingA?.avg_pitch_speed === null || !weeklyPitchingA
+                rolling7TeamPitchingA?.avg_pitch_speed === null ||
+                !rolling7TeamPitchingA
                   ? "--"
-                  : `${formatDecimal(weeklyPitchingA.avg_pitch_speed, 1)} mph`,
+                  : `${formatDecimal(rolling7TeamPitchingA.avg_pitch_speed, 1)} mph`,
               teamBValue:
-                weeklyPitchingB?.avg_pitch_speed === null || !weeklyPitchingB
+                rolling7TeamPitchingB?.avg_pitch_speed === null ||
+                !rolling7TeamPitchingB
                   ? "--"
-                  : `${formatDecimal(weeklyPitchingB.avg_pitch_speed, 1)} mph`,
+                  : `${formatDecimal(rolling7TeamPitchingB.avg_pitch_speed, 1)} mph`,
             },
             {
               label: "Avg Spin Rate",
               teamAValue:
-                weeklyPitchingA?.avg_spin_rate === null || !weeklyPitchingA
+                rolling7TeamPitchingA?.avg_spin_rate === null ||
+                !rolling7TeamPitchingA
                   ? "--"
-                  : `${formatDecimal(weeklyPitchingA.avg_spin_rate, 0)} rpm`,
+                  : `${formatDecimal(rolling7TeamPitchingA.avg_spin_rate, 0)} rpm`,
               teamBValue:
-                weeklyPitchingB?.avg_spin_rate === null || !weeklyPitchingB
+                rolling7TeamPitchingB?.avg_spin_rate === null ||
+                !rolling7TeamPitchingB
                   ? "--"
-                  : `${formatDecimal(weeklyPitchingB.avg_spin_rate, 0)} rpm`,
+                  : `${formatDecimal(rolling7TeamPitchingB.avg_spin_rate, 0)} rpm`,
             },
             {
               label: "ERA",
               teamAValue:
-                weeklyPitchingA?.era === null || !weeklyPitchingA
-                  ? "Coming soon"
-                  : formatDecimal(weeklyPitchingA.era),
+                rolling7TeamPitchingA?.era === null || !rolling7TeamPitchingA
+                  ? "--"
+                  : formatDecimal(rolling7TeamPitchingA.era),
               teamBValue:
-                weeklyPitchingB?.era === null || !weeklyPitchingB
-                  ? "Coming soon"
-                  : formatDecimal(weeklyPitchingB.era),
+                rolling7TeamPitchingB?.era === null || !rolling7TeamPitchingB
+                  ? "--"
+                  : formatDecimal(rolling7TeamPitchingB.era),
             },
             {
               label: "WHIP",
               teamAValue:
-                weeklyPitchingA?.whip === null || !weeklyPitchingA
-                  ? "Coming soon"
-                  : formatDecimal(weeklyPitchingA.whip, 3),
+                rolling7TeamPitchingA?.whip === null ||
+                !rolling7TeamPitchingA
+                  ? "--"
+                  : formatDecimal(rolling7TeamPitchingA.whip),
               teamBValue:
-                weeklyPitchingB?.whip === null || !weeklyPitchingB
-                  ? "Coming soon"
-                  : formatDecimal(weeklyPitchingB.whip, 3),
+                rolling7TeamPitchingB?.whip === null ||
+                !rolling7TeamPitchingB
+                  ? "--"
+                  : formatDecimal(rolling7TeamPitchingB.whip),
             },
           ]}
         />

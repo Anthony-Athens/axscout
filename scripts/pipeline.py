@@ -11,6 +11,7 @@ from scripts.config.settings import (
     ENABLE_PLAYER_ROLLING_7,
     ENABLE_PLAYER_STATCAST,
     ENABLE_TEAM_OFFENSE_SEASON,
+    ENABLE_TEAM_ROLLING_7,
     ENABLE_TEAM_WEEKLY_STATCAST,
     SEASON_START_DATE,
 )
@@ -51,6 +52,18 @@ def main() -> None:
         )
     else:
         print("Skipping Team Weekly Statcast Aggregates (disabled).")
+
+    if ENABLE_TEAM_ROLLING_7:
+        from scripts.pipelines.build_team_rolling_7_statcast_pipeline import (
+            main as build_team_rolling_7_statcast_pipeline,
+        )
+
+        run_pipeline(
+            "Build Team Rolling 7 Statcast Aggregates",
+            build_team_rolling_7_statcast_pipeline,
+        )
+    else:
+        print("Skipping Team Rolling 7 Statcast Aggregates (disabled).")
 
     if ENABLE_TEAM_OFFENSE_SEASON:
         if ENABLE_TEAM_WEEKLY_STATCAST and SEASON_START_DATE:

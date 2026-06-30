@@ -72,13 +72,14 @@ export type ReportTeam = {
     era: number | null;
     whip: number | null;
   } | null;
-  offense: {
+  rolling7Offense: {
     battingAverage: number | null;
     ops: number | null;
     homeRuns: number | null;
+    runs: number | null;
     avgExitVelocity: number | null;
   } | null;
-  pitching: {
+  rolling7Pitching: {
     strikeouts: number | null;
     avgPitchSpeed: number | null;
     avgSpinRate: number | null;
@@ -467,18 +468,33 @@ export function buildScoutingReport(
     ),
   ]);
   const offenseAdvantage = advantageFromVotes([
-    metricVote(teamA.offense?.ops, teamB.offense?.ops),
-    metricVote(teamA.offense?.battingAverage, teamB.offense?.battingAverage),
-    metricVote(teamA.offense?.homeRuns, teamB.offense?.homeRuns),
+    metricVote(teamA.rolling7Offense?.ops, teamB.rolling7Offense?.ops),
     metricVote(
-      teamA.offense?.avgExitVelocity,
-      teamB.offense?.avgExitVelocity
+      teamA.rolling7Offense?.battingAverage,
+      teamB.rolling7Offense?.battingAverage
+    ),
+    metricVote(
+      teamA.rolling7Offense?.homeRuns,
+      teamB.rolling7Offense?.homeRuns
+    ),
+    metricVote(
+      teamA.rolling7Offense?.avgExitVelocity,
+      teamB.rolling7Offense?.avgExitVelocity
     ),
   ]);
   const pitchingAdvantage = advantageFromVotes([
-    metricVote(teamA.pitching?.strikeouts, teamB.pitching?.strikeouts),
-    metricVote(teamA.pitching?.avgPitchSpeed, teamB.pitching?.avgPitchSpeed),
-    metricVote(teamA.pitching?.avgSpinRate, teamB.pitching?.avgSpinRate),
+    metricVote(
+      teamA.rolling7Pitching?.strikeouts,
+      teamB.rolling7Pitching?.strikeouts
+    ),
+    metricVote(
+      teamA.rolling7Pitching?.avgPitchSpeed,
+      teamB.rolling7Pitching?.avgPitchSpeed
+    ),
+    metricVote(
+      teamA.rolling7Pitching?.avgSpinRate,
+      teamB.rolling7Pitching?.avgSpinRate
+    ),
   ]);
   const playerFormAdvantage = advantageFromVotes([
     metricVote(
@@ -527,9 +543,9 @@ export function buildScoutingReport(
     comparisonNote(
       teamA,
       teamB,
-      teamA.offense?.ops,
-      teamB.offense?.ops,
-      "recent OPS"
+      teamA.rolling7Offense?.ops,
+      teamB.rolling7Offense?.ops,
+      "last-7 OPS"
     ),
   ].filter((note): note is string => Boolean(note));
   const overallText =
@@ -554,16 +570,16 @@ export function buildScoutingReport(
     comparisonNote(
       teamA,
       teamB,
-      teamA.offense?.ops,
-      teamB.offense?.ops,
-      "recent OPS"
+      teamA.rolling7Offense?.ops,
+      teamB.rolling7Offense?.ops,
+      "last-7 OPS"
     ),
     comparisonNote(
       teamA,
       teamB,
-      teamA.pitching?.avgPitchSpeed,
-      teamB.pitching?.avgPitchSpeed,
-      "average pitch speed"
+      teamA.rolling7Pitching?.avgPitchSpeed,
+      teamB.rolling7Pitching?.avgPitchSpeed,
+      "last-7 average pitch speed"
     ),
     comparisonNote(
       teamA,
@@ -719,46 +735,49 @@ export function buildScoutingReport(
       ],
     },
     {
-      heading: "Offensive Comparison",
+      heading: "Offensive Comparison - Last 7 Days",
       blocks: [
         {
           type: "paragraph",
-          text: "Latest available weekly team offense metrics.",
+          text: "Rolling team offense across the latest seven calendar days.",
         },
         {
           type: "table",
-          headers: ["Team", "BA", "OPS", "HR", "Avg Exit Velocity"],
+          headers: ["Team", "BA", "OPS", "HR", "Runs", "Avg Exit Velocity"],
           rows: [teamA, teamB].map((team) => [
             team.abbreviation,
-            formatNumber(team.offense?.battingAverage, 3),
-            formatNumber(team.offense?.ops, 3),
-            formatInteger(team.offense?.homeRuns),
-            `${formatNumber(team.offense?.avgExitVelocity, 1)} mph`,
+            formatBaseballRate(team.rolling7Offense?.battingAverage),
+            formatBaseballRate(team.rolling7Offense?.ops),
+            formatInteger(team.rolling7Offense?.homeRuns),
+            formatInteger(team.rolling7Offense?.runs),
+            team.rolling7Offense?.avgExitVelocity == null
+              ? "--"
+              : `${team.rolling7Offense.avgExitVelocity.toFixed(1)} mph`,
           ]),
         },
       ],
     },
     {
-      heading: "Pitching Comparison",
+      heading: "Pitching Comparison - Last 7 Days",
       blocks: [
         {
           type: "paragraph",
-          text: "Latest available weekly team pitching metrics.",
+          text: "Rolling team pitching across the latest seven calendar days.",
         },
         {
           type: "table",
           headers: ["Team", "K", "Avg Pitch Speed", "Avg Spin Rate", "ERA", "WHIP"],
           rows: [teamA, teamB].map((team) => [
             team.abbreviation,
-            formatInteger(team.pitching?.strikeouts),
-            `${formatNumber(team.pitching?.avgPitchSpeed, 1)} mph`,
-            `${formatNumber(team.pitching?.avgSpinRate, 0)} rpm`,
-            team.pitching?.era === null || !team.pitching
-              ? "Coming soon"
-              : formatNumber(team.pitching.era),
-            team.pitching?.whip === null || !team.pitching
-              ? "Coming soon"
-              : formatNumber(team.pitching.whip, 3),
+            formatInteger(team.rolling7Pitching?.strikeouts),
+            team.rolling7Pitching?.avgPitchSpeed == null
+              ? "--"
+              : `${team.rolling7Pitching.avgPitchSpeed.toFixed(1)} mph`,
+            team.rolling7Pitching?.avgSpinRate == null
+              ? "--"
+              : `${team.rolling7Pitching.avgSpinRate.toFixed(0)} rpm`,
+            formatPitchingRate(team.rolling7Pitching?.era),
+            formatPitchingRate(team.rolling7Pitching?.whip),
           ]),
         },
       ],
