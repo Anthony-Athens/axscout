@@ -11,26 +11,25 @@ export const metadata: Metadata = {
   alternates: { canonical: "/predictions" },
 };
 
-type OddsValue = number | string | null;
+type NumericValue = number | string | null;
 
-type OddsSnapshotRow = {
-  mlb_game_pk: number | null;
-  commence_time: string;
+type PredictionRow = {
+  mlb_game_pk: number;
+  game_date: string;
   home_team: string;
   away_team: string;
-  sportsbook: string;
-  market_key: "h2h" | "spreads" | "totals";
-  market_last_update: string | null;
-  home_price: OddsValue;
-  away_price: OddsValue;
-  home_point: OddsValue;
-  away_point: OddsValue;
-  total_point: OddsValue;
-  over_price: OddsValue;
-  under_price: OddsValue;
-  odds_format: string;
-  raw_event_id: string;
-  snapshot_at: string;
+  predicted_winner: string | null;
+  home_win_probability: NumericValue;
+  away_win_probability: NumericValue;
+  confidence: "Low" | "Medium" | "High" | null;
+  axscout_lean: string | null;
+  market_sportsbook: string | null;
+  market_home_moneyline: NumericValue;
+  market_away_moneyline: NumericValue;
+  edge_summary: string | null;
+  explanation: string | null;
+  model_version: string;
+  prediction_status: string;
 };
 
 type FactGameRow = {
@@ -39,53 +38,48 @@ type FactGameRow = {
   away_probable_pitcher_name: string | null;
 };
 
-type MarketBundle = {
-  key: string;
-  mlbGamePk: number | null;
-  commenceTime: string;
-  homeTeam: string;
-  awayTeam: string;
-  sportsbook: string;
-  oddsFormat: string;
-  lastUpdated: string;
-  markets: Partial<Record<OddsSnapshotRow["market_key"], OddsSnapshotRow>>;
+type OddsTimeRow = {
+  mlb_game_pk: number | null;
+  commence_time: string;
+  snapshot_at: string;
 };
 
 const roadmap = [
   {
     title: "Game Win Probability",
     description:
-      "Calibrated team win probabilities built from validated pregame features.",
+      "Conservative probabilities from transparent team, starter, and availability rules.",
+    status: "Rules v1 live",
   },
   {
     title: "Projected Score",
     description:
       "Expected run production for both clubs with transparent uncertainty ranges.",
+    status: "Planned",
   },
   {
     title: "Expected Starters Impact",
     description:
-      "Starter quality, handedness, workload, and matchup effects in the forecast.",
+      "Probable starter ERA and WHIP contribute when both starters are available.",
+    status: "Rules v1 live",
   },
   {
     title: "Injury-Adjusted Context",
     description:
-      "Active player availability reflected in each team's pregame outlook.",
+      "Active injury counts provide a small, capped availability adjustment.",
+    status: "Rules v1 live",
   },
   {
     title: "Market Line Comparison",
     description:
-      "Model estimates compared with available market lines when that data is ready.",
-  },
-  {
-    title: "Model Confidence",
-    description:
-      "A clear signal of forecast strength, data completeness, and uncertainty.",
+      "AXScout probabilities are compared with the latest available moneyline.",
+    status: "Rules v1 live",
   },
   {
     title: "Prediction History",
     description:
       "Auditable forecasts with accuracy, calibration, and performance tracking.",
+    status: "Planned",
   },
 ];
 
@@ -99,7 +93,7 @@ const dataFoundation = [
   "Append-only market odds snapshots",
 ];
 
-function asNumber(value: OddsValue) {
+function asNumber(value: NumericValue) {
   if (value === null) {
     return null;
   }
@@ -107,150 +101,102 @@ function asNumber(value: OddsValue) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function formatPrice(value: OddsValue, oddsFormat: string) {
+function formatPrice(value: NumericValue) {
   const price = asNumber(value);
   if (price === null) {
     return "--";
   }
-  if (oddsFormat === "american") {
-    return price > 0 ? `+${Math.round(price)}` : `${Math.round(price)}`;
-  }
-  return price.toFixed(2);
+  return price > 0 ? `+${Math.round(price)}` : `${Math.round(price)}`;
 }
 
-function formatPoint(value: OddsValue) {
-  const point = asNumber(value);
-  if (point === null) {
-    return "--";
-  }
-  const formatted = Number.isInteger(point) ? point.toFixed(1) : `${point}`;
-  return point > 0 ? `+${formatted}` : formatted;
+function formatProbability(value: NumericValue) {
+  const probability = asNumber(value);
+  return probability === null ? "--" : `${Math.round(probability * 100)}%`;
 }
 
-function formatDateTime(value: string) {
-  const date = new Date(value);
+function formatDateTime(value: string | undefined, fallbackDate: string) {
+  const date = new Date(value ?? `${fallbackDate}T12:00:00`);
   if (Number.isNaN(date.getTime())) {
-    return "--";
+    return fallbackDate;
   }
   return new Intl.DateTimeFormat("en-US", {
     dateStyle: "medium",
-    timeStyle: "short",
+    ...(value ? { timeStyle: "short" as const } : {}),
     timeZone: "America/New_York",
   }).format(date);
 }
 
-function latestMarketBundles(rows: OddsSnapshotRow[]): MarketBundle[] {
-  const newestMarkets = new Map<string, OddsSnapshotRow>();
-  const ordered = [...rows].sort(
-    (left, right) =>
-      new Date(right.snapshot_at).getTime() -
-      new Date(left.snapshot_at).getTime()
-  );
-
-  for (const row of ordered) {
-    const key = `${row.raw_event_id}|${row.sportsbook}|${row.market_key}`;
-    if (!newestMarkets.has(key)) {
-      newestMarkets.set(key, row);
-    }
-  }
-
-  const bundles = new Map<string, MarketBundle>();
-  for (const row of newestMarkets.values()) {
-    const key = `${row.raw_event_id}|${row.sportsbook}`;
-    const current = bundles.get(key) ?? {
-      key,
-      mlbGamePk: row.mlb_game_pk,
-      commenceTime: row.commence_time,
-      homeTeam: row.home_team,
-      awayTeam: row.away_team,
-      sportsbook: row.sportsbook,
-      oddsFormat: row.odds_format,
-      lastUpdated: row.market_last_update ?? row.snapshot_at,
-      markets: {},
-    };
-    current.markets[row.market_key] = row;
-    const rowUpdated = row.market_last_update ?? row.snapshot_at;
-    if (new Date(rowUpdated) > new Date(current.lastUpdated)) {
-      current.lastUpdated = rowUpdated;
-    }
-    bundles.set(key, current);
-  }
-
-  return [...bundles.values()].sort((left, right) => {
-    const dateDifference =
-      new Date(left.commenceTime).getTime() -
-      new Date(right.commenceTime).getTime();
-    return dateDifference || left.sportsbook.localeCompare(right.sportsbook);
-  });
-}
-
-function moneyline(bundle: MarketBundle) {
-  const market = bundle.markets.h2h;
-  if (!market) {
-    return "--";
-  }
-  return `${bundle.awayTeam} ${formatPrice(market.away_price, bundle.oddsFormat)} / ${bundle.homeTeam} ${formatPrice(market.home_price, bundle.oddsFormat)}`;
-}
-
-function spread(bundle: MarketBundle) {
-  const market = bundle.markets.spreads;
-  if (!market) {
-    return "--";
-  }
-  return `${bundle.awayTeam} ${formatPoint(market.away_point)} (${formatPrice(market.away_price, bundle.oddsFormat)}) / ${bundle.homeTeam} ${formatPoint(market.home_point)} (${formatPrice(market.home_price, bundle.oddsFormat)})`;
-}
-
-function total(bundle: MarketBundle) {
-  const market = bundle.markets.totals;
-  if (!market) {
-    return "--";
-  }
-  const point = formatPoint(market.total_point).replace(/^\+/, "");
-  return `O ${point} (${formatPrice(market.over_price, bundle.oddsFormat)}) / U ${point} (${formatPrice(market.under_price, bundle.oddsFormat)})`;
-}
-
 function expectedStarters(game: FactGameRow | undefined) {
   if (!game) {
+    return "Not announced / Not announced";
+  }
+  return `${game.away_probable_pitcher_name ?? "Not announced"} / ${game.home_probable_pitcher_name ?? "Not announced"}`;
+}
+
+function marketLine(prediction: PredictionRow) {
+  const away = formatPrice(prediction.market_away_moneyline);
+  const home = formatPrice(prediction.market_home_moneyline);
+  if (away === "--" && home === "--") {
     return "--";
   }
-  const away = game.away_probable_pitcher_name ?? "Not announced";
-  const home = game.home_probable_pitcher_name ?? "Not announced";
-  return `${away} / ${home}`;
+  return `${prediction.away_team} ${away} / ${prediction.home_team} ${home}`;
+}
+
+function predictedProbability(prediction: PredictionRow) {
+  return prediction.predicted_winner === prediction.home_team
+    ? prediction.home_win_probability
+    : prediction.away_win_probability;
 }
 
 export default async function PredictionsPage() {
   const supabase = await createClient();
-  const { data: oddsData } = await supabase
-    .from("odds_snapshots")
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: predictionData } = await supabase
+    .from("game_predictions")
     .select(
-      "mlb_game_pk, commence_time, home_team, away_team, sportsbook, market_key, market_last_update, home_price, away_price, home_point, away_point, total_point, over_price, under_price, odds_format, raw_event_id, snapshot_at"
+      "mlb_game_pk, game_date, home_team, away_team, predicted_winner, home_win_probability, away_win_probability, confidence, axscout_lean, market_sportsbook, market_home_moneyline, market_away_moneyline, edge_summary, explanation, model_version, prediction_status"
     )
-    .gte("commence_time", new Date().toISOString())
-    .order("snapshot_at", { ascending: false })
-    .limit(3000);
+    .gte("game_date", today)
+    .eq("model_name", "rules_based_v1")
+    .order("game_date")
+    .order("mlb_game_pk")
+    .limit(100);
 
-  const bundles = latestMarketBundles((oddsData ?? []) as OddsSnapshotRow[]);
-  const gameIds = [
-    ...new Set(
-      bundles
-        .map((bundle) => bundle.mlbGamePk)
-        .filter((gameId): gameId is number => gameId !== null)
-    ),
-  ];
-  const { data: factGameData } = gameIds.length
-    ? await supabase
-        .from("fact_games")
-        .select(
-          "mlb_game_pk, home_probable_pitcher_name, away_probable_pitcher_name"
-        )
-        .in("mlb_game_pk", gameIds)
-    : { data: [] as FactGameRow[] };
+  const predictions = (predictionData ?? []) as PredictionRow[];
+  const gameIds = predictions.map((prediction) => prediction.mlb_game_pk);
+  const [{ data: factGameData }, { data: oddsTimeData }] = gameIds.length
+    ? await Promise.all([
+        supabase
+          .from("fact_games")
+          .select(
+            "mlb_game_pk, home_probable_pitcher_name, away_probable_pitcher_name"
+          )
+          .in("mlb_game_pk", gameIds),
+        supabase
+          .from("odds_snapshots")
+          .select("mlb_game_pk, commence_time, snapshot_at")
+          .in("mlb_game_pk", gameIds)
+          .eq("market_key", "h2h")
+          .order("snapshot_at", { ascending: false })
+          .limit(1000),
+      ])
+    : [
+        { data: [] as FactGameRow[] },
+        { data: [] as OddsTimeRow[] },
+      ];
+
   const gamesByPk = new Map(
     ((factGameData ?? []) as FactGameRow[]).map((game) => [
       game.mlb_game_pk,
       game,
     ])
   );
+  const timesByPk = new Map<number, string>();
+  for (const row of (oddsTimeData ?? []) as OddsTimeRow[]) {
+    if (row.mlb_game_pk !== null && !timesByPk.has(row.mlb_game_pk)) {
+      timesByPk.set(row.mlb_game_pk, row.commence_time);
+    }
+  }
 
   return (
     <div className="space-y-8">
@@ -262,7 +208,7 @@ export default async function PredictionsPage() {
           <PageHeader
             label="Prediction Intelligence"
             title="Predictions"
-            description="Model-driven MLB game forecasts, matchup signals, expected starters, injury context, and market-aware insights."
+            description="Explainable MLB game forecasts using team form, expected starters, injury context, and market-aware comparisons."
           />
         </div>
       </div>
@@ -276,38 +222,35 @@ export default async function PredictionsPage() {
         </p>
       </aside>
 
-      <section aria-labelledby="market-lines-heading">
+      <section aria-labelledby="predictions-heading">
         <div className="mb-5">
           <h2
-            id="market-lines-heading"
+            id="predictions-heading"
             className="text-xl font-semibold text-slate-900"
           >
-            Upcoming Games and Market Lines
+            Upcoming Game Predictions
           </h2>
           <p className="mt-1 text-sm text-slate-600">
-            Latest available sportsbook snapshots with model fields reserved
-            for future validated forecasts.
+            Rules-based v1 forecasts with deliberately conservative
+            probabilities and concise, deterministic reasoning.
           </p>
         </div>
 
-        {bundles.length ? (
+        {predictions.length ? (
           <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
             <div className="overflow-x-auto">
-              <table className="min-w-[1600px] border-collapse text-left text-sm">
+              <table className="min-w-[1450px] border-collapse text-left text-sm">
                 <thead className="border-b border-slate-200 bg-slate-50 text-slate-600">
                   <tr>
                     {[
                       "Game",
-                      "Date",
+                      "Date / Time",
                       "Expected Starters",
-                      "Moneyline",
-                      "Spread",
-                      "Total",
-                      "Sportsbook",
-                      "Last Updated",
                       "AXScout Lean",
                       "Win Probability",
                       "Confidence",
+                      "Market Line",
+                      "Edge Summary",
                       "Status",
                     ].map((column) => (
                       <th
@@ -321,47 +264,57 @@ export default async function PredictionsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {bundles.map((bundle) => (
-                    <tr key={bundle.key} className="align-top">
-                      <td className="whitespace-nowrap px-4 py-3 font-semibold text-slate-950">
-                        {bundle.awayTeam} at {bundle.homeTeam}
+                  {predictions.map((prediction) => (
+                    <tr key={prediction.mlb_game_pk} className="align-top">
+                      <td className="whitespace-nowrap px-4 py-4 font-semibold text-slate-950">
+                        {prediction.away_team} at {prediction.home_team}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-slate-700">
-                        {formatDateTime(bundle.commenceTime)}
-                      </td>
-                      <td className="min-w-56 px-4 py-3 text-slate-700">
-                        {expectedStarters(
-                          bundle.mlbGamePk
-                            ? gamesByPk.get(bundle.mlbGamePk)
-                            : undefined
+                      <td className="whitespace-nowrap px-4 py-4 text-slate-700">
+                        {formatDateTime(
+                          timesByPk.get(prediction.mlb_game_pk),
+                          prediction.game_date
                         )}
                       </td>
-                      <td className="min-w-52 px-4 py-3 text-slate-700">
-                        {moneyline(bundle)}
+                      <td className="min-w-60 px-4 py-4 text-slate-700">
+                        {expectedStarters(
+                          gamesByPk.get(prediction.mlb_game_pk)
+                        )}
                       </td>
-                      <td className="min-w-64 px-4 py-3 text-slate-700">
-                        {spread(bundle)}
+                      <td className="min-w-64 px-4 py-4">
+                        <p className="font-semibold text-blue-700">
+                          {prediction.axscout_lean ?? "--"}
+                        </p>
+                        {prediction.explanation ? (
+                          <details className="mt-2 text-xs leading-5 text-slate-600">
+                            <summary className="cursor-pointer font-medium text-slate-700">
+                              Why this lean
+                            </summary>
+                            <p className="mt-1">{prediction.explanation}</p>
+                          </details>
+                        ) : null}
                       </td>
-                      <td className="min-w-52 px-4 py-3 text-slate-700">
-                        {total(bundle)}
+                      <td className="whitespace-nowrap px-4 py-4 font-semibold text-slate-950">
+                        {formatProbability(predictedProbability(prediction))}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 font-medium text-slate-900">
-                        {bundle.sportsbook}
+                      <td className="whitespace-nowrap px-4 py-4 text-slate-700">
+                        {prediction.confidence ?? "--"}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-slate-600">
-                        {formatDateTime(bundle.lastUpdated)}
+                      <td className="min-w-52 px-4 py-4 text-slate-700">
+                        {marketLine(prediction)}
+                        {prediction.market_sportsbook ? (
+                          <span className="mt-1 block text-xs text-slate-500">
+                            {prediction.market_sportsbook}
+                          </span>
+                        ) : null}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-slate-600">
-                        Coming soon
+                      <td className="min-w-56 px-4 py-4 text-slate-700">
+                        {prediction.edge_summary ?? "--"}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-slate-600">
-                        Coming soon
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-slate-600">
-                        Coming soon
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3 font-medium text-blue-700">
-                        Data foundation active
+                      <td className="whitespace-nowrap px-4 py-4 font-medium capitalize text-blue-700">
+                        {prediction.prediction_status}
+                        <span className="mt-1 block text-xs font-normal text-slate-500">
+                          v{prediction.model_version}
+                        </span>
                       </td>
                     </tr>
                   ))}
@@ -372,10 +325,11 @@ export default async function PredictionsPage() {
         ) : (
           <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm">
             <h3 className="font-semibold text-slate-900">
-              Market lines are not available yet.
+              Predictions are being prepared.
             </h3>
             <p className="mt-2 text-sm text-slate-600">
-              Odds ingestion is ready once ODDS_API_KEY is configured.
+              Check back soon as the rules-based prediction pipeline processes
+              the next slate of MLB games.
             </p>
           </div>
         )}
@@ -383,7 +337,7 @@ export default async function PredictionsPage() {
 
       <SectionCard
         title="Prediction Roadmap"
-        description="The forecast outputs planned for the AXScout prediction system."
+        description="What is active in rules-based v1 and what remains on the model roadmap."
       >
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {roadmap.map((item) => (
@@ -396,7 +350,7 @@ export default async function PredictionsPage() {
                   {item.title}
                 </h3>
                 <span className="shrink-0 text-xs font-semibold text-blue-600">
-                  Planned
+                  {item.status}
                 </span>
               </div>
               <p className="mt-2 text-sm leading-6 text-slate-600">
@@ -409,7 +363,7 @@ export default async function PredictionsPage() {
 
       <SectionCard
         title="Data Foundation"
-        description="Forecasts will build on the same warehouse-backed context used throughout AXScout."
+        description="The warehouse-backed context used by the current prediction rules."
       >
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {dataFoundation.map((source) => (

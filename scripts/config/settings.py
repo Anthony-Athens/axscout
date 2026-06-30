@@ -28,6 +28,10 @@ ENABLE_ODDS = (
     os.getenv("ENABLE_ODDS", "false").strip().lower()
     in {"1", "true", "yes", "on"}
 )
+ENABLE_PREDICTIONS = (
+    os.getenv("ENABLE_PREDICTIONS", "false").strip().lower()
+    in {"1", "true", "yes", "on"}
+)
 
 GAMES_LOOKBACK_DAYS = int(os.getenv("GAMES_LOOKBACK_DAYS", "7"))
 GAMES_LOOKAHEAD_DAYS = int(os.getenv("GAMES_LOOKAHEAD_DAYS", "7"))

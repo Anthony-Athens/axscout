@@ -7,6 +7,7 @@ from scripts.pipelines.build_team_rolling_14_pipeline import (
 )
 from scripts.config.settings import (
     ENABLE_ODDS,
+    ENABLE_PREDICTIONS,
     ENABLE_PITCHING_SUMMARY,
     ENABLE_PLAYER_INJURIES,
     ENABLE_PLAYER_ROLLING_7,
@@ -142,6 +143,15 @@ def main() -> None:
         run_pipeline("Load MLB Odds Snapshots", load_odds_pipeline)
     else:
         print("Skipping MLB Odds Snapshots (disabled).")
+
+    if ENABLE_PREDICTIONS:
+        from scripts.pipelines.build_predictions_pipeline import (
+            main as build_predictions_pipeline,
+        )
+
+        run_pipeline("Build Rules-Based Predictions", build_predictions_pipeline)
+    else:
+        print("Skipping Rules-Based Predictions (disabled).")
 
     print("AX Scout daily data refresh complete")
 
