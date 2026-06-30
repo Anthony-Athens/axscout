@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 
 import { SITE_URL } from "@/lib/site";
+import { createClient } from "@/lib/supabase/server";
 
 const publicRoutes = [
   { path: "", changeFrequency: "weekly" as const, priority: 1 },
@@ -16,10 +17,28 @@ const publicRoutes = [
   { path: "/disclaimer", changeFrequency: "yearly" as const, priority: 0.2 },
 ];
 
-export default function sitemap(): MetadataRoute.Sitemap {
-  return publicRoutes.map(({ path, changeFrequency, priority }) => ({
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("blog_posts")
+    .select("slug, updated_at, cover_image_url")
+    .eq("status", "published")
+    .order("published_at", { ascending: false });
+
+  const routes: MetadataRoute.Sitemap = publicRoutes.map(
+    ({ path, changeFrequency, priority }) => ({
     url: `${SITE_URL}${path}`,
     changeFrequency,
     priority,
+    })
+  );
+  const posts: MetadataRoute.Sitemap = (data ?? []).map((post) => ({
+    url: `${SITE_URL}/blog/${post.slug}`,
+    lastModified: post.updated_at,
+    changeFrequency: "monthly",
+    priority: 0.6,
+    images: post.cover_image_url ? [post.cover_image_url] : undefined,
   }));
+
+  return [...routes, ...posts];
 }
