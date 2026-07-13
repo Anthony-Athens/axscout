@@ -1016,6 +1016,108 @@ create policy "Allow public read pitcher similarities" on public.pitcher_similar
 drop policy if exists "Allow public read pitcher model runs" on public.pitcher_model_runs;
 create policy "Allow public read pitcher model runs" on public.pitcher_model_runs for select using (true);
 
+create table if not exists public.batter_vs_pitcher_archetype (
+  id uuid primary key default gen_random_uuid(),
+  mlb_batter_id integer not null references public.dim_players(mlb_player_id),
+  season integer not null,
+  period_start date not null,
+  period_end date not null,
+  archetype_id uuid not null references public.pitcher_archetypes(archetype_id) on delete cascade,
+  model_version text not null,
+  feature_version text not null,
+  plate_appearances integer,
+  at_bats integer,
+  hits integer,
+  singles integer,
+  doubles integer,
+  triples integer,
+  home_runs integer,
+  walks integer,
+  strikeouts integer,
+  hit_by_pitch integer,
+  sacrifice_flies integer,
+  batting_average numeric,
+  on_base_percentage numeric,
+  slugging_percentage numeric,
+  ops numeric,
+  isolated_power numeric,
+  strikeout_rate numeric,
+  walk_rate numeric,
+  whiff_rate numeric,
+  csw_rate numeric,
+  avg_exit_velocity numeric,
+  hard_hit_rate numeric,
+  barrel_rate numeric,
+  xwoba numeric,
+  woba numeric,
+  run_value numeric,
+  sample_quality text check (sample_quality in ('low', 'medium', 'high')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(mlb_batter_id, season, period_start, period_end, archetype_id, model_version)
+);
+
+create table if not exists public.team_vs_pitcher_archetype (
+  id uuid primary key default gen_random_uuid(),
+  team_abbreviation text not null references public.dim_teams(abbreviation),
+  season integer not null,
+  period_start date not null,
+  period_end date not null,
+  archetype_id uuid not null references public.pitcher_archetypes(archetype_id) on delete cascade,
+  model_version text not null,
+  feature_version text not null,
+  plate_appearances integer,
+  at_bats integer,
+  hits integer,
+  singles integer,
+  doubles integer,
+  triples integer,
+  home_runs integer,
+  walks integer,
+  strikeouts integer,
+  hit_by_pitch integer,
+  sacrifice_flies integer,
+  batting_average numeric,
+  on_base_percentage numeric,
+  slugging_percentage numeric,
+  ops numeric,
+  isolated_power numeric,
+  strikeout_rate numeric,
+  walk_rate numeric,
+  whiff_rate numeric,
+  csw_rate numeric,
+  avg_exit_velocity numeric,
+  hard_hit_rate numeric,
+  barrel_rate numeric,
+  xwoba numeric,
+  woba numeric,
+  run_value numeric,
+  sample_quality text check (sample_quality in ('low', 'medium', 'high')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(team_abbreviation, season, period_start, period_end, archetype_id, model_version)
+);
+
+create index if not exists batter_archetype_batter_idx on public.batter_vs_pitcher_archetype(mlb_batter_id);
+create index if not exists batter_archetype_archetype_idx on public.batter_vs_pitcher_archetype(archetype_id);
+create index if not exists batter_archetype_season_idx on public.batter_vs_pitcher_archetype(season);
+create index if not exists batter_archetype_model_idx on public.batter_vs_pitcher_archetype(model_version);
+create index if not exists batter_archetype_season_archetype_idx on public.batter_vs_pitcher_archetype(season, archetype_id);
+create index if not exists batter_archetype_lookup_idx on public.batter_vs_pitcher_archetype(mlb_batter_id, season, model_version);
+create index if not exists team_archetype_team_idx on public.team_vs_pitcher_archetype(team_abbreviation);
+create index if not exists team_archetype_archetype_idx on public.team_vs_pitcher_archetype(archetype_id);
+create index if not exists team_archetype_season_idx on public.team_vs_pitcher_archetype(season);
+create index if not exists team_archetype_model_idx on public.team_vs_pitcher_archetype(model_version);
+create index if not exists team_archetype_season_archetype_idx on public.team_vs_pitcher_archetype(season, archetype_id);
+create index if not exists team_archetype_lookup_idx on public.team_vs_pitcher_archetype(team_abbreviation, season, model_version);
+
+alter table public.batter_vs_pitcher_archetype enable row level security;
+alter table public.team_vs_pitcher_archetype enable row level security;
+drop policy if exists "Allow public read batter archetype matchups" on public.batter_vs_pitcher_archetype;
+create policy "Allow public read batter archetype matchups" on public.batter_vs_pitcher_archetype for select using (true);
+drop policy if exists "Allow public read team archetype matchups" on public.team_vs_pitcher_archetype;
+create policy "Allow public read team archetype matchups" on public.team_vs_pitcher_archetype for select using (true);
+
 create table if not exists public.blog_posts (
   id bigint generated by default as identity primary key,
   slug text not null unique,

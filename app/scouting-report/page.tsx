@@ -18,6 +18,8 @@ import ScoutingReportFilters, {
 } from "@/components/ScoutingReportFilters";
 import EmptyState from "@/components/ui/EmptyState";
 import SectionCard from "@/components/ui/SectionCard";
+import StarterArchetypeMatchups from "@/components/StarterArchetypeMatchups";
+import { getStarterArchetypeMatchupForScoutingReport } from "@/lib/data/archetype-matchups";
 import { createPageMetadata } from "@/lib/metadata";
 import { createClient } from "@/lib/supabase/server";
 import type {
@@ -1009,6 +1011,15 @@ export default async function ScoutingReportPage({
     teamB.team_key,
     starterGamesB
   );
+  const starterArchetypeMatchups = await getStarterArchetypeMatchupForScoutingReport(
+    [...probableStartersA, ...probableStartersB]
+      .filter((starter): starter is ProbableStarter & { mlbPlayerId: number; fullName: string } => starter.mlbPlayerId !== null && starter.fullName !== null)
+      .map((starter) => ({
+        mlbPlayerId: starter.mlbPlayerId,
+        pitcherName: starter.fullName,
+        opponentAbbreviation: starter.opponentAbbreviation,
+      }))
+  );
   const offenseLeaders = (rows: OffensePlayerRow[]): LeaderboardPlayer[] =>
     rows.map((player) => ({
       mlb_player_id: player.mlb_player_id,
@@ -1370,6 +1381,8 @@ export default async function ScoutingReportPage({
           />
         </div>
       </section>
+
+      <StarterArchetypeMatchups rows={starterArchetypeMatchups.data} />
 
       <section className="mt-8" aria-labelledby="rolling-comparison-heading">
         <div className="mb-5">

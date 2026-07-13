@@ -6,6 +6,7 @@ from scripts.pipelines.build_team_rolling_14_pipeline import (
     main as build_team_rolling_14_pipeline,
 )
 from scripts.config.settings import (
+    ENABLE_ARCHETYPE_MATCHUPS,
     ENABLE_ODDS,
     ENABLE_PITCHER_ARCHETYPES,
     ENABLE_PREDICTION_TRACKING,
@@ -124,6 +125,21 @@ def main() -> None:
         print(
             "ENABLE_PITCHER_ARCHETYPES not enabled; skipping pitcher "
             "archetype pipeline"
+        )
+
+    if ENABLE_ARCHETYPE_MATCHUPS:
+        print(
+            "ENABLE_ARCHETYPE_MATCHUPS=true; running archetype matchup pipeline"
+        )
+        from scripts.pipelines.build_archetype_matchups_pipeline import (
+            main as build_archetype_matchups_pipeline,
+        )
+
+        run_pipeline("Build Archetype Matchups", build_archetype_matchups_pipeline)
+    else:
+        print(
+            "ENABLE_ARCHETYPE_MATCHUPS not enabled; skipping archetype "
+            "matchup pipeline"
         )
 
     if ENABLE_PITCHING_SUMMARY:

@@ -119,3 +119,29 @@ PITCHER_ARCHETYPE_MODEL_VERSION = os.getenv(
 PITCHER_ARCHETYPE_FEATURE_VERSION = os.getenv(
     "PITCHER_ARCHETYPE_FEATURE_VERSION", "pitcher_features_v1"
 ).strip()
+
+ENABLE_ARCHETYPE_MATCHUPS = (
+    os.getenv("ENABLE_ARCHETYPE_MATCHUPS", "false").strip().lower()
+    in {"1", "true", "yes", "on"}
+)
+ARCHETYPE_MATCHUP_SEASON = int(
+    os.getenv("ARCHETYPE_MATCHUP_SEASON", str(datetime.now().year))
+)
+ARCHETYPE_MATCHUP_START_DATE = (
+    os.getenv("ARCHETYPE_MATCHUP_START_DATE", "").strip() or None
+)
+ARCHETYPE_MATCHUP_END_DATE = (
+    os.getenv("ARCHETYPE_MATCHUP_END_DATE", "").strip() or None
+)
+ARCHETYPE_MATCHUP_MODEL_VERSION = os.getenv(
+    "ARCHETYPE_MATCHUP_MODEL_VERSION", "pitcher_archetypes_v1"
+).strip()
+ARCHETYPE_MATCHUP_FEATURE_VERSION = os.getenv(
+    "ARCHETYPE_MATCHUP_FEATURE_VERSION", "archetype_matchups_v1"
+).strip()
+ARCHETYPE_MATCHUP_MIN_PA_BATTER = int(
+    os.getenv("ARCHETYPE_MATCHUP_MIN_PA_BATTER", "20")
+)
+ARCHETYPE_MATCHUP_MIN_PA_TEAM = int(
+    os.getenv("ARCHETYPE_MATCHUP_MIN_PA_TEAM", "50")
+)

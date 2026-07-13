@@ -56,6 +56,15 @@ add `ENABLE_PITCHER_ARCHETYPES=true` plus the `PITCHER_ARCHETYPE_*` variables
 documented in `docs/pitcher-archetypes.md` to the workflow environment. Until
 then, the master pipeline logs that the optional stage is skipped.
 
+Archetype matchups are also disabled by default. `ENABLE_ARCHETYPE_MATCHUPS`
+depends on primary pitcher memberships for the same
+`ARCHETYPE_MATCHUP_SEASON` and `ARCHETYPE_MATCHUP_MODEL_VERSION`. When enabling
+it later, run `ENABLE_PITCHER_ARCHETYPES=true` first (or in the same master
+pipeline invocation) and configure the remaining `ARCHETYPE_MATCHUP_*`
+variables documented in `docs/pitcher-archetypes.md`. Do not enable the matchup
+stage in GitHub Actions until both new aggregate tables have been deployed and
+the model-version dependency has been verified.
+
 ## Manual Refresh
 
 1. Open the repository's **Actions** tab.

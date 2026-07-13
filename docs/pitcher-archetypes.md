@@ -129,6 +129,63 @@ silhouette scores, and defining standardized features. Generated `Archetype N`
 labels remain placeholders; generic descriptions display as pending manual
 review rather than implying an unsupported baseball taxonomy.
 
+## Phase 1C archetype matchup intelligence
+
+Phase 1C adds two public-read aggregate tables:
+
+- `batter_vs_pitcher_archetype` stores batter results by season, analysis
+  window, primary pitcher archetype, and model version.
+- `team_vs_pitcher_archetype` stores the equivalent team offensive results.
+
+The pipeline fetches Statcast in memory, joins each pitcher's MLB ID to the
+primary `pitcher_archetype_memberships` row for the configured season/model,
+and persists only batter/team aggregates. It does not create a raw pitch table.
+Counting metrics come from terminal plate-appearance events. Whiff and CSW use
+pitch descriptions; exit velocity, hard-hit, barrel, xwOBA, wOBA, and run value
+remain null when their Statcast source fields are unavailable.
+
+Configuration:
+
+- `ENABLE_ARCHETYPE_MATCHUPS` (default `false`)
+- `ARCHETYPE_MATCHUP_SEASON` (defaults to the current year)
+- `ARCHETYPE_MATCHUP_START_DATE` (defaults to March 1 of the season)
+- `ARCHETYPE_MATCHUP_END_DATE` (defaults to today)
+- `ARCHETYPE_MATCHUP_MODEL_VERSION` (default `pitcher_archetypes_v1`)
+- `ARCHETYPE_MATCHUP_FEATURE_VERSION` (default `archetype_matchups_v1`)
+- `ARCHETYPE_MATCHUP_MIN_PA_BATTER` (default `20`)
+- `ARCHETYPE_MATCHUP_MIN_PA_TEAM` (default `50`)
+
+```bash
+export ENABLE_ARCHETYPE_MATCHUPS=true
+export ARCHETYPE_MATCHUP_SEASON=2026
+export ARCHETYPE_MATCHUP_START_DATE=2026-03-27
+export ARCHETYPE_MATCHUP_END_DATE=2026-06-30
+export ARCHETYPE_MATCHUP_MODEL_VERSION=pitcher_archetypes_v1
+export ARCHETYPE_MATCHUP_FEATURE_VERSION=archetype_matchups_v1
+python -m scripts.pipelines.build_archetype_matchups_pipeline
+```
+
+Through the master pipeline, run pitcher archetypes first so the configured
+primary memberships exist:
+
+```bash
+export ENABLE_PITCHER_ARCHETYPES=true
+export ENABLE_ARCHETYPE_MATCHUPS=true
+python -m scripts.pipeline
+```
+
+Sample quality is `low` below the configured PA threshold, `medium` from one to
+less than two times the threshold, and `high` at two times the threshold or
+more. These labels describe sample volume only; they do not validate predictive
+signal.
+
+Archetype detail pages provide sortable team and batter tables. Pitcher profile
+pages summarize leading offense against the pitcher's primary archetype and
+explicitly state that the results are not specific to that individual pitcher.
+The Scouting Report optionally links expected starters to the opposing team's
+aggregate performance against that starter's archetype. This is read-only
+context and does not alter existing Scouting Report or prediction calculations.
+
 ## Limitations and next phases
 
 Phase 1A does not infer starter share, VAA, or HAA; does not persist raw pitches;
@@ -137,9 +194,10 @@ identities and map orientation can shift between model versions. Phase 1B does
 not calculate map coordinates, infer missing movement, or turn cluster distance
 into scouting certainty.
 
-Phase 1C should first evaluate cluster stability and coordinate generation,
-then explore batter performance versus pitcher archetype as a separately
-validated modeling layer. That work should preserve batter sample-size context
-and avoid treating archetype membership as a causal matchup effect. Richer
-movement geometry, role-aware models, and temporal comparisons also remain
-future work.
+Matchup aggregates do not control for batter/pitcher handedness, park, count,
+pitch sequence, role, opponent quality, or changing cluster identity. They are
+descriptive and should not be treated as causal effects, individual-pitcher
+projections, prop recommendations, or betting advice. A recommended next step
+is an out-of-sample stability study with handedness and time-window splits
+before these features inform any predictive model. Richer movement geometry,
+role-aware models, and temporal comparisons also remain future work.
