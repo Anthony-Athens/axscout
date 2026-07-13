@@ -110,7 +110,28 @@ def main() -> None:
     else:
         print("Skipping Player Rolling 7 Statcast Aggregates (disabled).")
 
+    if ENABLE_PITCHING_SUMMARY:
+        print(
+            "ENABLE_PITCHING_SUMMARY=true; running pitching summary pipeline"
+        )
+        from scripts.pipelines.build_pitching_summary_pipeline import (
+            main as build_pitching_summary_pipeline,
+        )
+
+        run_pipeline(
+            "Build Official Pitching Summaries",
+            build_pitching_summary_pipeline,
+        )
+    else:
+        print(
+            "ENABLE_PITCHING_SUMMARY not enabled; skipping pitching summary "
+            "pipeline"
+        )
+
     if ENABLE_PLAYER_INJURIES:
+        print(
+            "ENABLE_PLAYER_INJURIES=true; running player injuries pipeline"
+        )
         from scripts.pipelines.load_player_injuries_pipeline import (
             main as load_player_injuries_pipeline,
         )
@@ -124,44 +145,44 @@ def main() -> None:
                 "optional source must not block the daily pipeline."
             )
     else:
-        print("Skipping Player Injuries (disabled).")
-
-    if ENABLE_PITCHING_SUMMARY:
-        from scripts.pipelines.build_pitching_summary_pipeline import (
-            main as build_pitching_summary_pipeline,
+        print(
+            "ENABLE_PLAYER_INJURIES not enabled; skipping player injuries "
+            "pipeline"
         )
-
-        run_pipeline(
-            "Build Official Pitching Summaries",
-            build_pitching_summary_pipeline,
-        )
-    else:
-        print("Skipping Official Pitching Summaries (disabled).")
 
     if ENABLE_ODDS:
+        print("ENABLE_ODDS=true; running odds pipeline")
         from scripts.pipelines.load_odds_pipeline import main as load_odds_pipeline
 
         run_pipeline("Load MLB Odds Snapshots", load_odds_pipeline)
     else:
-        print("Skipping MLB Odds Snapshots (disabled).")
+        print("ENABLE_ODDS not enabled; skipping odds pipeline")
 
     if ENABLE_PREDICTIONS:
+        print("ENABLE_PREDICTIONS=true; running predictions pipeline")
         from scripts.pipelines.build_predictions_pipeline import (
             main as build_predictions_pipeline,
         )
 
         run_pipeline("Build Rules-Based Predictions", build_predictions_pipeline)
     else:
-        print("Skipping Rules-Based Predictions (disabled).")
+        print("ENABLE_PREDICTIONS not enabled; skipping predictions pipeline")
 
     if ENABLE_PREDICTION_TRACKING:
+        print(
+            "ENABLE_PREDICTION_TRACKING=true; running prediction scoring "
+            "pipeline"
+        )
         from scripts.pipelines.score_predictions_pipeline import (
             main as score_predictions_pipeline,
         )
 
         run_pipeline("Score Completed Predictions", score_predictions_pipeline)
     else:
-        print("Skipping Prediction Tracking (disabled).")
+        print(
+            "ENABLE_PREDICTION_TRACKING not enabled; skipping prediction "
+            "scoring pipeline"
+        )
 
     print("AX Scout daily data refresh complete")
 

@@ -12,9 +12,10 @@ python -m scripts.pipeline
 ```
 
 The scheduled job loads data beginning at `SEASON_START_DATE=2026-03-27`.
-Team and player Statcast pipelines are enabled. Because `SEASON_END_DATE` and
-`STATCAST_END_DATE` are not set, their configured pipelines refresh through
-the current date.
+Team and player Statcast pipelines are enabled. The scheduled refresh also
+loads player injuries and odds, builds predictions, and scores completed
+predictions. Because `SEASON_END_DATE` and `STATCAST_END_DATE` are not set,
+their configured pipelines refresh through the current date.
 
 ## Repository Secrets
 
@@ -23,10 +24,31 @@ variables > Actions > New repository secret**:
 
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `ODDS_API_KEY`
 
 The service-role key is read from GitHub Actions secrets at runtime. It must
 not be placed in the workflow file, committed environment files, logs, or
-documentation.
+documentation. `ODDS_API_KEY` must also be configured as a GitHub Actions
+repository secret; odds ingestion cannot call The Odds API without it.
+
+## Scheduled Pipeline Environment
+
+The workflow passes the following environment variables to
+`python -m scripts.pipeline`:
+
+- Supabase: `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`, both sourced from
+  repository secrets.
+- Odds ingestion: `ODDS_API_KEY` from a repository secret, plus
+  `ENABLE_ODDS=true`, `ODDS_API_REGIONS=us`,
+  `ODDS_API_MARKETS=h2h,spreads,totals`, and
+  `ODDS_API_ODDS_FORMAT=american`.
+- Player injuries: `ENABLE_PLAYER_INJURIES=true`.
+- Prediction generation: `ENABLE_PREDICTIONS=true`.
+- Prediction tracking: `ENABLE_PREDICTION_TRACKING=true`.
+
+The master pipeline completes games, warehouse, and metric refreshes before
+loading injuries and odds. It then builds predictions and scores completed
+predictions last, so scoring sees the latest game results and prediction data.
 
 ## Manual Refresh
 
