@@ -184,7 +184,14 @@ pages summarize leading offense against the pitcher's primary archetype and
 explicitly state that the results are not specific to that individual pitcher.
 The Scouting Report optionally links expected starters to the opposing team's
 aggregate performance against that starter's archetype. This is read-only
-context and does not alter existing Scouting Report or prediction calculations.
+context and does not alter existing Scouting Report calculations.
+
+Rules-based predictions version `0.2.0` also consumes the team aggregates as a
+small, optional signal. It matches season and pitcher model version, ignores
+low samples, discounts medium samples, and caps the total game-level movement
+at four probability points. Missing matchup data remains neutral. The stored
+prediction transparency fields contain archetype names, OPS, xwOBA, and sample
+quality; they do not claim an individual-pitcher projection.
 
 ## Limitations and next phases
 

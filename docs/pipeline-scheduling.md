@@ -49,6 +49,10 @@ The workflow passes the following environment variables to
 The master pipeline completes games, warehouse, and metric refreshes before
 loading injuries and odds. It then builds predictions and scores completed
 predictions last, so scoring sees the latest game results and prediction data.
+When enabled, pitcher archetypes and archetype matchup aggregates are built
+after the core team/player metrics and before injuries, odds, predictions, and
+prediction scoring. This makes the newest compatible matchup context available
+to predictions without changing the required daily stages.
 
 Pitcher archetypes are intentionally not enabled in the daily workflow during
 Phase 1A. After the schema is deployed and a production date window is chosen,
@@ -64,6 +68,11 @@ pipeline invocation) and configure the remaining `ARCHETYPE_MATCHUP_*`
 variables documented in `docs/pitcher-archetypes.md`. Do not enable the matchup
 stage in GitHub Actions until both new aggregate tables have been deployed and
 the model-version dependency has been verified.
+
+Prediction model `rules_based_v1` version `0.2.0` reads these tables
+optionally. If either archetype stage is disabled, has no eligible rows, or is
+temporarily unavailable, prediction generation continues with a neutral
+archetype adjustment. No new prediction environment flag is required.
 
 ## Manual Refresh
 

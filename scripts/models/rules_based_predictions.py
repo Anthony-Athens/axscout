@@ -1,7 +1,10 @@
 from dataclasses import dataclass
 
 MODEL_NAME = "rules_based_v1"
-MODEL_VERSION = "0.1.0"
+MODEL_VERSION = "0.2.0"
+
+ARCHETYPE_TEAM_ADJUSTMENT_CAP = 3.0
+ARCHETYPE_GAME_ADJUSTMENT_CAP = 4.0
 
 
 @dataclass(frozen=True)
@@ -49,6 +52,46 @@ def american_implied_probability(odds) -> float | None:
         absolute = abs(value)
         return absolute / (absolute + 100.0)
     return 100.0 / (value + 100.0)
+
+
+def _team_archetype_matchup_adjustment(feature: dict, side: str) -> float:
+    quality = str(
+        feature.get(f"{side}_offense_matchup_sample_quality") or ""
+    ).lower()
+    if quality not in {"medium", "high"}:
+        return 0.0
+
+    signals = [
+        ("ops", 0.720, 0.080, 1.20, False),
+        ("xwoba", 0.320, 0.040, 1.00, False),
+        ("strikeout_rate", 0.230, 0.080, 0.50, True),
+        ("walk_rate", 0.085, 0.050, 0.30, False),
+    ]
+    score = 0.0
+    for name, baseline, scale, weight, lower_is_better in signals:
+        value = _number(feature.get(f"{side}_offense_matchup_{name}"))
+        if value is None:
+            continue
+        difference = baseline - value if lower_is_better else value - baseline
+        score += _clamp(difference / scale, -1.0, 1.0) * weight
+
+    sample_weight = 0.5 if quality == "medium" else 1.0
+    return _clamp(
+        score * sample_weight,
+        -ARCHETYPE_TEAM_ADJUSTMENT_CAP,
+        ARCHETYPE_TEAM_ADJUSTMENT_CAP,
+    )
+
+
+def archetype_matchup_adjustment(feature: dict) -> float:
+    """Return a home-edge point adjustment, capped at four percentage points."""
+    home_adjustment = _team_archetype_matchup_adjustment(feature, "home")
+    away_adjustment = _team_archetype_matchup_adjustment(feature, "away")
+    return _clamp(
+        home_adjustment - away_adjustment,
+        -ARCHETYPE_GAME_ADJUSTMENT_CAP,
+        ARCHETYPE_GAME_ADJUSTMENT_CAP,
+    )
 
 
 def _market_edge_summary(
@@ -157,6 +200,10 @@ def build_prediction(feature: dict) -> dict:
             2.0,
             lower_is_better=True,
         ),
+        ScoreComponent(
+            "a favorable pitcher-archetype matchup",
+            archetype_matchup_adjustment(feature),
+        ),
         _relative_component(
             "fewer active injuries",
             feature.get("home_active_injuries"),
@@ -214,6 +261,30 @@ def build_prediction(feature: dict) -> dict:
             implied_away,
         ),
         "explanation": _explanation(predicted_winner, home_team, components),
+        "home_starter_archetype_name": feature.get(
+            "home_starter_archetype_name"
+        ),
+        "away_starter_archetype_name": feature.get(
+            "away_starter_archetype_name"
+        ),
+        "home_offense_matchup_ops": feature.get(
+            "home_offense_matchup_ops"
+        ),
+        "home_offense_matchup_xwoba": feature.get(
+            "home_offense_matchup_xwoba"
+        ),
+        "home_offense_matchup_sample_quality": feature.get(
+            "home_offense_matchup_sample_quality"
+        ),
+        "away_offense_matchup_ops": feature.get(
+            "away_offense_matchup_ops"
+        ),
+        "away_offense_matchup_xwoba": feature.get(
+            "away_offense_matchup_xwoba"
+        ),
+        "away_offense_matchup_sample_quality": feature.get(
+            "away_offense_matchup_sample_quality"
+        ),
         "model_name": MODEL_NAME,
         "model_version": MODEL_VERSION,
         "prediction_status": "active",

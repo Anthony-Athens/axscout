@@ -82,6 +82,93 @@ def _moneylines(game_ids: list[int], today: str) -> list[dict]:
     return rows
 
 
+def _archetype_context(fact_games: list[dict]) -> tuple[list[dict], list[dict], list[dict]]:
+    pitcher_ids = sorted({
+        int(player_id)
+        for game in fact_games
+        for player_id in (
+            game.get("home_probable_pitcher_mlb_id"),
+            game.get("away_probable_pitcher_mlb_id"),
+        )
+        if player_id is not None
+    })
+    team_keys = {
+        team_key
+        for game in fact_games
+        for team_key in (game.get("home_team_key"), game.get("away_team_key"))
+        if team_key is not None
+    }
+    if not pitcher_ids or not team_keys:
+        return [], [], []
+
+    try:
+        profiles = (
+            supabase.table("pitcher_profiles")
+            .select(
+                "mlb_player_id,season,period_end,primary_archetype_id,"
+                "model_version,refreshed_at"
+            )
+            .in_("mlb_player_id", pitcher_ids)
+            .order("season", desc=True)
+            .order("period_end", desc=True)
+            .execute()
+            .data
+            or []
+        )
+        archetype_ids = sorted({
+            str(row["primary_archetype_id"])
+            for row in profiles
+            if row.get("primary_archetype_id")
+        })
+        if not archetype_ids:
+            return profiles, [], []
+
+        teams = (
+            supabase.table("dim_teams")
+            .select("team_key,abbreviation")
+            .in_("team_key", list(team_keys))
+            .execute()
+            .data
+            or []
+        )
+        abbreviations = sorted({
+            str(row["abbreviation"])
+            for row in teams
+            if row.get("abbreviation")
+        })
+        archetypes = (
+            supabase.table("pitcher_archetypes")
+            .select("archetype_id,archetype_name")
+            .in_("archetype_id", archetype_ids)
+            .execute()
+            .data
+            or []
+        )
+        matchups = []
+        if abbreviations:
+            matchups = (
+                supabase.table("team_vs_pitcher_archetype")
+                .select(
+                    "team_abbreviation,season,period_end,archetype_id,"
+                    "model_version,plate_appearances,ops,xwoba,"
+                    "strikeout_rate,walk_rate,sample_quality,updated_at"
+                )
+                .in_("archetype_id", archetype_ids)
+                .in_("team_abbreviation", abbreviations)
+                .order("period_end", desc=True)
+                .execute()
+                .data
+                or []
+            )
+        return profiles, archetypes, matchups
+    except Exception as error:
+        print(
+            "Pitcher archetype matchup context unavailable; continuing with "
+            f"neutral values. {error}"
+        )
+        return [], [], []
+
+
 def main() -> None:
     source_date = date.today().isoformat()
     print(f"Starting rules-based prediction refresh for {source_date}.")
@@ -90,6 +177,9 @@ def main() -> None:
     try:
         fact_games = _upcoming_games(source_date)
         game_ids = [int(row["mlb_game_pk"]) for row in fact_games]
+        pitcher_profiles, pitcher_archetypes, team_matchups = (
+            _archetype_context(fact_games)
+        )
         features = build_prediction_features(
             fact_games=fact_games,
             dim_teams=select_all(
@@ -136,6 +226,9 @@ def main() -> None:
             ),
             active_injuries=_active_injuries(),
             odds_snapshots=_moneylines(game_ids, source_date),
+            pitcher_profiles=pitcher_profiles,
+            pitcher_archetypes=pitcher_archetypes,
+            team_archetype_matchups=team_matchups,
         )
         predictions = build_predictions(features.features)
         loaded = load_game_predictions(predictions)
@@ -144,6 +237,11 @@ def main() -> None:
         print(f"Games skipped: {features.games_skipped}.")
         print(f"Games missing odds: {features.missing_odds_count}.")
         print(f"Games missing at least one starter: {features.missing_starter_count}.")
+        print(
+            "Archetype context rows: "
+            f"{len(pitcher_profiles)} starter profiles, "
+            f"{len(team_matchups)} team matchups."
+        )
         mark_refresh_success(run_id, loaded)
         print(f"Rules-based prediction refresh complete: {loaded} rows loaded.")
     except Exception as error:

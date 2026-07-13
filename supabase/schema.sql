@@ -177,14 +177,32 @@ create table if not exists public.game_predictions (
   implied_away_probability numeric(6, 5),
   edge_summary text,
   explanation text,
+  home_starter_archetype_name text,
+  away_starter_archetype_name text,
+  home_offense_matchup_ops numeric,
+  home_offense_matchup_xwoba numeric,
+  home_offense_matchup_sample_quality text check (home_offense_matchup_sample_quality in ('low', 'medium', 'high')),
+  away_offense_matchup_ops numeric,
+  away_offense_matchup_xwoba numeric,
+  away_offense_matchup_sample_quality text check (away_offense_matchup_sample_quality in ('low', 'medium', 'high')),
   model_name text not null default 'rules_based_v1',
-  model_version text not null default '0.1.0',
+  model_version text not null default '0.2.0',
   prediction_status text not null default 'active',
   source_snapshot_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique(mlb_game_pk, model_name, model_version)
 );
+
+alter table public.game_predictions
+  add column if not exists home_starter_archetype_name text,
+  add column if not exists away_starter_archetype_name text,
+  add column if not exists home_offense_matchup_ops numeric,
+  add column if not exists home_offense_matchup_xwoba numeric,
+  add column if not exists home_offense_matchup_sample_quality text check (home_offense_matchup_sample_quality in ('low', 'medium', 'high')),
+  add column if not exists away_offense_matchup_ops numeric,
+  add column if not exists away_offense_matchup_xwoba numeric,
+  add column if not exists away_offense_matchup_sample_quality text check (away_offense_matchup_sample_quality in ('low', 'medium', 'high'));
 
 create index if not exists game_predictions_game_idx
 on public.game_predictions(mlb_game_pk);

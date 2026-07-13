@@ -29,6 +29,14 @@ type PredictionRow = {
   market_away_moneyline: NumericValue;
   edge_summary: string | null;
   explanation: string | null;
+  home_starter_archetype_name: string | null;
+  away_starter_archetype_name: string | null;
+  home_offense_matchup_ops: NumericValue;
+  home_offense_matchup_xwoba: NumericValue;
+  home_offense_matchup_sample_quality: "low" | "medium" | "high" | null;
+  away_offense_matchup_ops: NumericValue;
+  away_offense_matchup_xwoba: NumericValue;
+  away_offense_matchup_sample_quality: "low" | "medium" | "high" | null;
   model_version: string;
   prediction_status: string;
 };
@@ -98,6 +106,12 @@ const roadmap = [
       "Completed forecasts are scored by model version with confidence-level accuracy.",
     status: "Tracking live",
   },
+  {
+    title: "Pitcher Archetype Matchups",
+    description:
+      "Team results against starter archetypes provide a small, sample-aware adjustment when available.",
+    status: "Rules v1 live",
+  },
 ];
 
 const dataFoundation = [
@@ -108,6 +122,7 @@ const dataFoundation = [
   "Pitcher ERA and WHIP",
   "Active injury reports",
   "Append-only market odds snapshots",
+  "Team offense by pitcher archetype",
 ];
 
 function asNumber(value: NumericValue) {
@@ -129,6 +144,53 @@ function formatPrice(value: NumericValue) {
 function formatProbability(value: NumericValue) {
   const probability = asNumber(value);
   return probability === null ? "--" : `${Math.round(probability * 100)}%`;
+}
+
+function formatDecimal(value: NumericValue, digits = 3) {
+  const number = asNumber(value);
+  return number === null ? "--" : number.toFixed(digits).replace(/^0/, "");
+}
+
+function matchupSummary(prediction: PredictionRow) {
+  const matchups = [
+    {
+      team: prediction.away_team,
+      archetype: prediction.home_starter_archetype_name,
+      ops: prediction.away_offense_matchup_ops,
+      xwoba: prediction.away_offense_matchup_xwoba,
+      quality: prediction.away_offense_matchup_sample_quality,
+    },
+    {
+      team: prediction.home_team,
+      archetype: prediction.away_starter_archetype_name,
+      ops: prediction.home_offense_matchup_ops,
+      xwoba: prediction.home_offense_matchup_xwoba,
+      quality: prediction.home_offense_matchup_sample_quality,
+    },
+  ];
+
+  if (matchups.every((matchup) => !matchup.archetype)) {
+    return <p className="text-slate-500">Context unavailable</p>;
+  }
+
+  return (
+    <div className="space-y-2">
+      {matchups.map((matchup) => (
+        <div key={matchup.team}>
+          <p className="font-medium text-slate-800">
+            {matchup.team} vs {matchup.archetype ?? "unclassified starter"}
+          </p>
+          <p className="text-xs text-slate-500">
+            OPS {formatDecimal(matchup.ops)} · xwOBA{" "}
+            {formatDecimal(matchup.xwoba)} · {matchup.quality ?? "no"} sample
+          </p>
+        </div>
+      ))}
+      <p className="text-xs leading-4 text-slate-500">
+        Descriptive aggregate; low samples are neutral.
+      </p>
+    </div>
+  );
 }
 
 function formatDateTime(value: string | undefined, fallbackDate: string) {
@@ -218,10 +280,11 @@ export default async function PredictionsPage() {
     supabase
       .from("game_predictions")
       .select(
-        "mlb_game_pk, game_date, home_team, away_team, predicted_winner, home_win_probability, away_win_probability, confidence, axscout_lean, market_sportsbook, market_home_moneyline, market_away_moneyline, edge_summary, explanation, model_version, prediction_status"
+        "mlb_game_pk, game_date, home_team, away_team, predicted_winner, home_win_probability, away_win_probability, confidence, axscout_lean, market_sportsbook, market_home_moneyline, market_away_moneyline, edge_summary, explanation, home_starter_archetype_name, away_starter_archetype_name, home_offense_matchup_ops, home_offense_matchup_xwoba, home_offense_matchup_sample_quality, away_offense_matchup_ops, away_offense_matchup_xwoba, away_offense_matchup_sample_quality, model_version, prediction_status"
       )
       .gte("game_date", today)
       .eq("model_name", "rules_based_v1")
+      .eq("model_version", "0.2.0")
       .order("game_date")
       .order("mlb_game_pk")
       .limit(100),
@@ -320,13 +383,14 @@ export default async function PredictionsPage() {
         {predictions.length ? (
           <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
             <div className="overflow-x-auto">
-              <table className="min-w-[1450px] border-collapse text-left text-sm">
+              <table className="min-w-[1750px] border-collapse text-left text-sm">
                 <thead className="border-b border-slate-200 bg-slate-50 text-slate-600">
                   <tr>
                     {[
                       "Game",
                       "Date / Time",
                       "Expected Starters",
+                      "Archetype Matchup",
                       "AXScout Lean",
                       "Win Probability",
                       "Confidence",
@@ -360,6 +424,9 @@ export default async function PredictionsPage() {
                         {expectedStarters(
                           gamesByPk.get(prediction.mlb_game_pk)
                         )}
+                      </td>
+                      <td className="min-w-72 px-4 py-4 text-slate-700">
+                        {matchupSummary(prediction)}
                       </td>
                       <td className="min-w-64 px-4 py-4">
                         <p className="font-semibold text-blue-700">

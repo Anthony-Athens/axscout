@@ -53,6 +53,50 @@ def _latest_pitchers(rows: list[dict]) -> dict[int, dict]:
     return result
 
 
+def _latest_pitcher_archetypes(rows: list[dict]) -> dict[int, dict]:
+    ordered = sorted(
+        rows,
+        key=lambda row: (
+            int(row.get("season") or 0),
+            str(row.get("period_end") or ""),
+            str(row.get("refreshed_at") or ""),
+        ),
+        reverse=True,
+    )
+    result = {}
+    for row in ordered:
+        player_id = _integer(row.get("mlb_player_id"))
+        if (
+            player_id is not None
+            and row.get("primary_archetype_id")
+            and player_id not in result
+        ):
+            result[player_id] = row
+    return result
+
+
+def _latest_team_archetype_matchups(rows: list[dict]) -> dict[tuple, dict]:
+    ordered = sorted(
+        rows,
+        key=lambda row: (
+            str(row.get("period_end") or ""),
+            str(row.get("updated_at") or ""),
+        ),
+        reverse=True,
+    )
+    result = {}
+    for row in ordered:
+        key = (
+            row.get("team_abbreviation"),
+            str(row.get("archetype_id") or ""),
+            _integer(row.get("season")),
+            row.get("model_version"),
+        )
+        if all(value is not None and value != "" for value in key):
+            result.setdefault(key, row)
+    return result
+
+
 def _latest_moneylines(rows: list[dict]) -> dict[int, dict]:
     eligible = [
         row
@@ -97,6 +141,9 @@ def build_prediction_features(
     player_pitching_season: list[dict],
     active_injuries: list[dict],
     odds_snapshots: list[dict],
+    pitcher_profiles: list[dict] | None = None,
+    pitcher_archetypes: list[dict] | None = None,
+    team_archetype_matchups: list[dict] | None = None,
 ) -> PredictionFeatureResult:
     teams_by_key = {
         _integer(row.get("team_key")): row.get("abbreviation")
@@ -116,6 +163,15 @@ def build_prediction_features(
         "window_end_date",
     )
     pitchers = _latest_pitchers(player_pitching_season)
+    starter_archetypes = _latest_pitcher_archetypes(pitcher_profiles or [])
+    archetype_names = {
+        str(row.get("archetype_id")): row.get("archetype_name")
+        for row in (pitcher_archetypes or [])
+        if row.get("archetype_id") and row.get("archetype_name")
+    }
+    archetype_matchups = _latest_team_archetype_matchups(
+        team_archetype_matchups or []
+    )
     injuries = Counter(
         row.get("team_abbreviation")
         for row in active_injuries
@@ -144,6 +200,37 @@ def build_prediction_features(
         away_starter_id = _integer(game.get("away_probable_pitcher_mlb_id"))
         home_starter = pitchers.get(home_starter_id, {})
         away_starter = pitchers.get(away_starter_id, {})
+        home_starter_archetype = starter_archetypes.get(home_starter_id, {})
+        away_starter_archetype = starter_archetypes.get(away_starter_id, {})
+        game_season = _integer(str(game_date)[:4])
+        if _integer(home_starter_archetype.get("season")) != game_season:
+            home_starter_archetype = {}
+        if _integer(away_starter_archetype.get("season")) != game_season:
+            away_starter_archetype = {}
+        home_archetype_id = str(
+            home_starter_archetype.get("primary_archetype_id") or ""
+        )
+        away_archetype_id = str(
+            away_starter_archetype.get("primary_archetype_id") or ""
+        )
+        away_offense_matchup = archetype_matchups.get(
+            (
+                away_team,
+                home_archetype_id,
+                _integer(home_starter_archetype.get("season")),
+                home_starter_archetype.get("model_version"),
+            ),
+            {},
+        )
+        home_offense_matchup = archetype_matchups.get(
+            (
+                home_team,
+                away_archetype_id,
+                _integer(away_starter_archetype.get("season")),
+                away_starter_archetype.get("model_version"),
+            ),
+            {},
+        )
         if home_starter_id is None or away_starter_id is None:
             missing_starter += 1
 
@@ -206,6 +293,48 @@ def build_prediction_features(
                 ),
                 "away_starter_strikeouts": _integer(
                     away_starter.get("strikeouts")
+                ),
+                "home_starter_archetype_name": archetype_names.get(
+                    home_archetype_id
+                ),
+                "away_starter_archetype_name": archetype_names.get(
+                    away_archetype_id
+                ),
+                "home_offense_matchup_plate_appearances": _integer(
+                    home_offense_matchup.get("plate_appearances")
+                ),
+                "home_offense_matchup_ops": _number(
+                    home_offense_matchup.get("ops")
+                ),
+                "home_offense_matchup_xwoba": _number(
+                    home_offense_matchup.get("xwoba")
+                ),
+                "home_offense_matchup_strikeout_rate": _number(
+                    home_offense_matchup.get("strikeout_rate")
+                ),
+                "home_offense_matchup_walk_rate": _number(
+                    home_offense_matchup.get("walk_rate")
+                ),
+                "home_offense_matchup_sample_quality": (
+                    home_offense_matchup.get("sample_quality")
+                ),
+                "away_offense_matchup_plate_appearances": _integer(
+                    away_offense_matchup.get("plate_appearances")
+                ),
+                "away_offense_matchup_ops": _number(
+                    away_offense_matchup.get("ops")
+                ),
+                "away_offense_matchup_xwoba": _number(
+                    away_offense_matchup.get("xwoba")
+                ),
+                "away_offense_matchup_strikeout_rate": _number(
+                    away_offense_matchup.get("strikeout_rate")
+                ),
+                "away_offense_matchup_walk_rate": _number(
+                    away_offense_matchup.get("walk_rate")
+                ),
+                "away_offense_matchup_sample_quality": (
+                    away_offense_matchup.get("sample_quality")
                 ),
                 "home_active_injuries": injuries[home_team],
                 "away_active_injuries": injuries[away_team],
