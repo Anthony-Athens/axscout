@@ -11,7 +11,8 @@ export type PitcherProfile = {
   overallXwobaAllowed: number | null; archetypeId: string | null;
   archetypeName: string | null; archetypeSlug: string | null;
   archetypeProbability: number | null; outlierScore: number | null;
-  modelVersion: string | null; refreshedAt: string;
+  mapX: number | null; mapY: number | null; starterShare: number | null;
+  featureVersion: string; modelVersion: string | null; refreshedAt: string;
 };
 export type PitchArsenalRow = {
   pitchType: string; pitchName: string | null; pitchCount: number;
@@ -23,7 +24,7 @@ export type PitcherArchetype = {
   archetypeId: string; name: string; slug: string; shortDescription: string | null;
   season: number; modelVersion: string; pitcherCount: number;
   representativeMlbPlayerId: number | null; representativeName: string | null;
-  silhouetteScore: number | null; features: ArchetypeFeature[];
+  silhouetteScore: number | null; featureVersion: string; features: ArchetypeFeature[];
 };
 export type ArchetypeFeature = {
   name: string; mean: number | null; stddev: number | null;
@@ -35,6 +36,23 @@ export type SimilarPitcher = {
   explanation: string | null; archetypeName: string | null;
 };
 export type DataResult<T> = { data: T; error: string | null };
+export type PitcherMapPoint = {
+  mlbPlayerId: number; fullName: string; season: number;
+  mapX: number; mapY: number; archetypeId: string | null;
+  archetypeName: string | null; primaryPitchType: string | null;
+  fastballVelocity: number | null; overallWhiffRate: number | null;
+  archetypeProbability: number | null; starterShare: number | null;
+};
+export type PitcherMapFilters = {
+  seasons: number[];
+  archetypes: { id: string; name: string }[];
+  hasRoleData: boolean;
+};
+export type PitcherProfileVisualizationData = {
+  arsenal: PitchArsenalRow[];
+  usage: { pitchType: string; pitchName: string; pitchCount: number; usageRate: number }[];
+  movement: { pitchType: string; pitchName: string; horizontal: number; vertical: number; usageRate: number }[];
+};
 
 type ProfileRow = {
   mlb_player_id: number; season: number; period_start: string; period_end: string;
@@ -44,13 +62,15 @@ type ProfileRow = {
   overall_csw_rate: number | null; overall_xwoba_allowed: number | null;
   primary_archetype_id: string | null; archetype_probability: number | null;
   outlier_score: number | null; model_version: string | null; refreshed_at: string;
+  map_x: number | null; map_y: number | null; starter_share: number | null;
+  feature_version: string;
 };
 type PlayerRow = { mlb_player_id: number; full_name: string | null; throws: string | null };
 type ArchetypeRow = {
   archetype_id: string; archetype_name: string; archetype_slug: string;
   short_description: string | null; season: number; model_version: string;
   pitcher_count: number | null; representative_mlb_player_id: number | null;
-  silhouette_score: number | null;
+  silhouette_score: number | null; feature_version: string;
 };
 
 async function hydrateProfiles(rows: ProfileRow[]): Promise<PitcherProfile[]> {
@@ -79,14 +99,16 @@ async function hydrateProfiles(rows: ProfileRow[]): Promise<PitcherProfile[]> {
       overallXwobaAllowed: row.overall_xwoba_allowed, archetypeId: row.primary_archetype_id,
       archetypeName: archetype?.archetype_name ?? null, archetypeSlug: archetype?.archetype_slug ?? null,
       archetypeProbability: row.archetype_probability, outlierScore: row.outlier_score,
-      modelVersion: row.model_version, refreshedAt: row.refreshed_at,
+      mapX: row.map_x, mapY: row.map_y, starterShare: row.starter_share,
+      featureVersion: row.feature_version, modelVersion: row.model_version,
+      refreshedAt: row.refreshed_at,
     };
   });
 }
 
 export async function listPitchers(): Promise<DataResult<PitcherProfile[]>> {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("pitcher_profiles").select("mlb_player_id,season,period_start,period_end,total_pitches,primary_pitch_type,primary_pitch_usage,secondary_pitch_type,fastball_velocity,overall_whiff_rate,overall_csw_rate,overall_xwoba_allowed,primary_archetype_id,archetype_probability,outlier_score,model_version,refreshed_at").order("season", { ascending: false }).order("total_pitches", { ascending: false }).limit(1000);
+  const { data, error } = await supabase.from("pitcher_profiles").select("mlb_player_id,season,period_start,period_end,total_pitches,starter_share,primary_pitch_type,primary_pitch_usage,secondary_pitch_type,fastball_velocity,overall_whiff_rate,overall_csw_rate,overall_xwoba_allowed,primary_archetype_id,archetype_probability,outlier_score,map_x,map_y,feature_version,model_version,refreshed_at").order("season", { ascending: false }).order("period_end", { ascending: false }).order("total_pitches", { ascending: false }).limit(1000);
   if (error) return { data: [], error: error.message };
   return { data: await hydrateProfiles((data ?? []) as ProfileRow[]), error: null };
 }
@@ -109,7 +131,7 @@ export async function getPitcherArsenal(playerId: number): Promise<DataResult<Pi
 
 export async function listPitcherArchetypes(): Promise<DataResult<PitcherArchetype[]>> {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("pitcher_archetypes").select("archetype_id,archetype_name,archetype_slug,short_description,season,model_version,pitcher_count,representative_mlb_player_id,silhouette_score").order("season", { ascending: false }).order("cluster_number");
+  const { data, error } = await supabase.from("pitcher_archetypes").select("archetype_id,archetype_name,archetype_slug,short_description,season,model_version,feature_version,pitcher_count,representative_mlb_player_id,silhouette_score").order("season", { ascending: false }).order("cluster_number");
   if (error) return { data: [], error: error.message };
   const rows = (data ?? []) as ArchetypeRow[];
   const ids = rows.map((row) => row.archetype_id);
@@ -121,7 +143,59 @@ export async function listPitcherArchetypes(): Promise<DataResult<PitcherArchety
   type FeatureRow = { archetype_id: string; feature_name: string; feature_mean: number | null; feature_stddev: number | null; league_percentile: number | null; importance_rank: number | null };
   const featureRows = (features ?? []) as FeatureRow[];
   const playerMap = new Map(((players ?? []) as PlayerRow[]).map((row) => [row.mlb_player_id, row.full_name]));
-  return { data: rows.map((row) => ({ archetypeId: row.archetype_id, name: row.archetype_name, slug: row.archetype_slug, shortDescription: row.short_description, season: row.season, modelVersion: row.model_version, pitcherCount: row.pitcher_count ?? 0, representativeMlbPlayerId: row.representative_mlb_player_id, representativeName: row.representative_mlb_player_id ? playerMap.get(row.representative_mlb_player_id) ?? null : null, silhouetteScore: row.silhouette_score, features: featureRows.filter((feature) => feature.archetype_id === row.archetype_id).map((feature) => ({ name: feature.feature_name, mean: feature.feature_mean, stddev: feature.feature_stddev, leaguePercentile: feature.league_percentile, importanceRank: feature.importance_rank })) })), error: null };
+  return { data: rows.map((row) => ({ archetypeId: row.archetype_id, name: row.archetype_name, slug: row.archetype_slug, shortDescription: row.short_description, season: row.season, modelVersion: row.model_version, featureVersion: row.feature_version, pitcherCount: row.pitcher_count ?? 0, representativeMlbPlayerId: row.representative_mlb_player_id, representativeName: row.representative_mlb_player_id ? playerMap.get(row.representative_mlb_player_id) ?? null : null, silhouetteScore: row.silhouette_score, features: featureRows.filter((feature) => feature.archetype_id === row.archetype_id).map((feature) => ({ name: feature.feature_name, mean: feature.feature_mean, stddev: feature.feature_stddev, leaguePercentile: feature.league_percentile, importanceRank: feature.importance_rank })) })), error: null };
+}
+
+export async function getPitcherMapPoints(): Promise<DataResult<PitcherMapPoint[]>> {
+  const result = await listPitchers();
+  const latestByPitcherSeason = new Map<string, PitcherProfile>();
+  for (const profile of result.data) {
+    const key = `${profile.mlbPlayerId}-${profile.season}`;
+    if (!latestByPitcherSeason.has(key)) latestByPitcherSeason.set(key, profile);
+  }
+  return {
+    data: [...latestByPitcherSeason.values()]
+      .filter((profile): profile is PitcherProfile & { mapX: number; mapY: number } => profile.mapX !== null && profile.mapY !== null)
+      .map((profile) => ({
+        mlbPlayerId: profile.mlbPlayerId, fullName: profile.fullName,
+        season: profile.season, mapX: profile.mapX, mapY: profile.mapY,
+        archetypeId: profile.archetypeId, archetypeName: profile.archetypeName,
+        primaryPitchType: profile.primaryPitchType,
+        fastballVelocity: profile.fastballVelocity,
+        overallWhiffRate: profile.overallWhiffRate,
+        archetypeProbability: profile.archetypeProbability,
+        starterShare: profile.starterShare,
+      })),
+    error: result.error,
+  };
+}
+
+export function getPitcherMapFilters(points: PitcherMapPoint[]): PitcherMapFilters {
+  const archetypes = new Map<string, string>();
+  for (const point of points) {
+    if (point.archetypeId && point.archetypeName) archetypes.set(point.archetypeId, point.archetypeName);
+  }
+  return {
+    seasons: [...new Set(points.map((point) => point.season))].sort((a, b) => b - a),
+    archetypes: [...archetypes].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name)),
+    hasRoleData: points.some((point) => point.starterShare !== null),
+  };
+}
+
+export async function getPitcherProfileVisualizationData(playerId: number): Promise<DataResult<PitcherProfileVisualizationData>> {
+  const arsenal = await getPitcherArsenal(playerId);
+  return {
+    data: {
+      arsenal: arsenal.data,
+      usage: arsenal.data
+        .filter((pitch): pitch is PitchArsenalRow & { usageRate: number } => pitch.usageRate !== null)
+        .map((pitch) => ({ pitchType: pitch.pitchType, pitchName: pitch.pitchName ?? pitch.pitchType, pitchCount: pitch.pitchCount, usageRate: pitch.usageRate })),
+      movement: arsenal.data
+        .filter((pitch): pitch is PitchArsenalRow & { avgHorizontalBreak: number; avgIvb: number; usageRate: number } => pitch.avgHorizontalBreak !== null && pitch.avgIvb !== null && pitch.usageRate !== null)
+        .map((pitch) => ({ pitchType: pitch.pitchType, pitchName: pitch.pitchName ?? pitch.pitchType, horizontal: pitch.avgHorizontalBreak, vertical: pitch.avgIvb, usageRate: pitch.usageRate })),
+    },
+    error: arsenal.error,
+  };
 }
 
 export async function getPitcherArchetype(slug: string): Promise<DataResult<PitcherArchetype | null>> {

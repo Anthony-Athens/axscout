@@ -93,14 +93,53 @@ matching season/model/window output before idempotent inserts.
 ## Frontend and empty states
 
 Routes are `/pitchers`, `/pitchers/[pitcherId]`, `/pitchers/archetypes`, and
-`/pitchers/archetypes/[slug]`. If the schema is not deployed or tables contain
-no output, pages explain how data becomes available and never substitute demo
-production records.
+`/pitchers/archetypes/[slug]`. Phase 1B also adds `/pitchers/map`. If the schema
+is not deployed or tables contain no output, pages explain how data becomes
+available and never substitute demo production records.
 
-## Limitations and Phase 1B
+### Pitcher Map interpretation
+
+The Pitcher Map reads existing `pitcher_profiles.map_x` and `map_y` values. One
+point represents one pitcher's latest profile; color represents the primary
+archetype when available. Nearby points indicate more similar standardized
+arsenal and pitch-profile characteristics.
+
+The axes are model similarity-space coordinates. They are not velocity,
+movement, performance, quality, or any other direct baseball metric, and their
+orientation can change between model versions. Phase 1B does not synthesize
+coordinates in the browser or change the model pipeline. If `map_x` and `map_y`
+are null, the page displays an explicit empty state until an upstream model run
+stores coordinates.
+
+The map supports season, archetype, and pitcher-name filters. A role filter is
+shown only when `starter_share` exists. Hover details expose the pitcher's
+archetype, primary pitch, fastball velocity, whiff rate, and membership
+confidence; selecting a point opens the pitcher profile.
+
+### Profile visualizations
+
+Pitcher profiles include a pitch-usage bar chart, where labels retain observed
+pitch counts, and a movement scatter plot using aggregated horizontal and
+vertical `pfx_x`/`pfx_z`-derived features. Movement point size reflects pitch
+usage. The full mobile-scrollable arsenal table remains the source for exact
+display values, and null metrics remain visibly unavailable.
+
+Archetype pages show model and feature versions, representative pitchers,
+silhouette scores, and defining standardized features. Generated `Archetype N`
+labels remain placeholders; generic descriptions display as pending manual
+review rather than implying an unsupported baseball taxonomy.
+
+## Limitations and next phases
 
 Phase 1A does not infer starter share, VAA, or HAA; does not persist raw pitches;
 and uses baseline K-Means rather than a validated baseball taxonomy. Cluster
-identities can shift between model versions. Phase 1B should evaluate cluster
-stability, richer movement geometry, role-aware models, temporal comparisons,
-and a separately designed Pitcher Map after the core outputs are validated.
+identities and map orientation can shift between model versions. Phase 1B does
+not calculate map coordinates, infer missing movement, or turn cluster distance
+into scouting certainty.
+
+Phase 1C should first evaluate cluster stability and coordinate generation,
+then explore batter performance versus pitcher archetype as a separately
+validated modeling layer. That work should preserve batter sample-size context
+and avoid treating archetype membership as a causal matchup effect. Richer
+movement geometry, role-aware models, and temporal comparisons also remain
+future work.

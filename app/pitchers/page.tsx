@@ -5,7 +5,7 @@ import EmptyState from "@/components/ui/EmptyState";
 import { getPitcherArchetypeRefreshStatus, listPitcherArchetypes, listPitchers } from "@/lib/data/pitchers";
 import { createPageMetadata } from "@/lib/metadata";
 
-export const metadata = createPageMetadata({ title: "Pitcher Explorer", description: "Explore MLB pitcher arsenals, data-driven archetypes, and similar pitchers.", path: "/pitchers" });
+export const metadata = createPageMetadata({ title: "Pitcher Explorer | Baseball Intelligence Platform", description: "Explore Statcast pitcher arsenals, pitcher archetypes, and pitcher similarity analysis with AXScout.", path: "/pitchers" });
 type Search = { q?: string; season?: string; archetype?: string; throws?: string; minPitches?: string; sort?: string };
 const pct = (value: number | null) => value === null ? "—" : `${(value * 100).toFixed(1)}%`;
 const num = (value: number | null, digits = 1) => value === null ? "—" : value.toFixed(digits);
@@ -27,7 +27,7 @@ export default async function PitchersPage({ searchParams }: { searchParams: Pro
   return <div className="space-y-8">
     <div className="flex flex-wrap items-start justify-between gap-4">
       <PageHeader label="Pitcher Intelligence" title="Pitcher Explorer" description="Compare aggregated arsenals and baseline data-driven pitcher archetypes." />
-      <Link href="/pitchers/archetypes" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">View archetypes</Link>
+      <nav className="flex flex-wrap gap-2"><Link href="/pitchers/archetypes" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">View archetypes</Link><Link href="/pitchers/map" className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:border-blue-300 hover:text-blue-700">Open Pitcher Map</Link></nav>
     </div>
     <form className="grid gap-3 rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-3 xl:grid-cols-6">
       <input name="q" defaultValue={filters.q} placeholder="Search pitcher" aria-label="Search pitcher" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
