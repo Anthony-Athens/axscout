@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -92,3 +93,29 @@ PITCHING_SUMMARY_SEASON = (
     if os.getenv("PITCHING_SUMMARY_SEASON", "").strip()
     else None
 )
+
+ENABLE_PITCHER_ARCHETYPES = (
+    os.getenv("ENABLE_PITCHER_ARCHETYPES", "false").strip().lower()
+    in {"1", "true", "yes", "on"}
+)
+PITCHER_ARCHETYPE_SEASON = int(
+    os.getenv("PITCHER_ARCHETYPE_SEASON", str(datetime.now().year))
+)
+PITCHER_ARCHETYPE_START_DATE = (
+    os.getenv("PITCHER_ARCHETYPE_START_DATE", "").strip() or None
+)
+PITCHER_ARCHETYPE_END_DATE = (
+    os.getenv("PITCHER_ARCHETYPE_END_DATE", "").strip() or None
+)
+PITCHER_ARCHETYPE_MIN_PITCHES = int(
+    os.getenv("PITCHER_ARCHETYPE_MIN_PITCHES", "300")
+)
+PITCHER_ARCHETYPE_CLUSTER_COUNT = int(
+    os.getenv("PITCHER_ARCHETYPE_CLUSTER_COUNT", "8")
+)
+PITCHER_ARCHETYPE_MODEL_VERSION = os.getenv(
+    "PITCHER_ARCHETYPE_MODEL_VERSION", "pitcher_archetypes_v1"
+).strip()
+PITCHER_ARCHETYPE_FEATURE_VERSION = os.getenv(
+    "PITCHER_ARCHETYPE_FEATURE_VERSION", "pitcher_features_v1"
+).strip()

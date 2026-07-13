@@ -50,6 +50,12 @@ The master pipeline completes games, warehouse, and metric refreshes before
 loading injuries and odds. It then builds predictions and scores completed
 predictions last, so scoring sees the latest game results and prediction data.
 
+Pitcher archetypes are intentionally not enabled in the daily workflow during
+Phase 1A. After the schema is deployed and a production date window is chosen,
+add `ENABLE_PITCHER_ARCHETYPES=true` plus the `PITCHER_ARCHETYPE_*` variables
+documented in `docs/pitcher-archetypes.md` to the workflow environment. Until
+then, the master pipeline logs that the optional stage is skipped.
+
 ## Manual Refresh
 
 1. Open the repository's **Actions** tab.

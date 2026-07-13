@@ -791,6 +791,231 @@ on public.player_injuries
 for select
 using (true);
 
+-- Pitcher archetype analytics (Phase 1A). Pitch-level Statcast data is
+-- aggregated in the pipeline and is not persisted in Supabase.
+create table if not exists public.pitcher_pitch_profiles (
+  id uuid primary key default gen_random_uuid(),
+  mlb_player_id integer not null references public.dim_players(mlb_player_id),
+  season integer not null,
+  period_start date not null,
+  period_end date not null,
+  pitch_type text not null,
+  pitch_name text,
+  pitch_count integer not null check (pitch_count >= 0),
+  usage_rate numeric check (usage_rate between 0 and 1),
+  avg_velocity numeric,
+  velocity_stddev numeric,
+  velocity_p90 numeric,
+  avg_spin_rate numeric,
+  avg_spin_axis numeric,
+  avg_ivb numeric,
+  avg_horizontal_break numeric,
+  avg_vaa numeric,
+  avg_haa numeric,
+  avg_release_height numeric,
+  avg_release_side numeric,
+  avg_extension numeric,
+  zone_rate numeric,
+  chase_rate numeric,
+  whiff_rate numeric,
+  csw_rate numeric,
+  ground_ball_rate numeric,
+  hard_hit_rate numeric,
+  barrel_rate numeric,
+  xwoba_allowed numeric,
+  feature_version text not null default 'pitcher_features_v1',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(season, period_start, period_end, mlb_player_id, pitch_type, feature_version)
+);
+
+create table if not exists public.pitcher_archetypes (
+  archetype_id uuid primary key default gen_random_uuid(),
+  archetype_name text not null,
+  archetype_slug text not null,
+  short_description text,
+  long_description text,
+  season integer not null,
+  cluster_number integer not null,
+  algorithm text not null,
+  model_version text not null,
+  feature_version text not null,
+  pitcher_count integer check (pitcher_count >= 0),
+  representative_mlb_player_id integer references public.dim_players(mlb_player_id),
+  silhouette_score numeric,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(archetype_slug, season, model_version),
+  unique(season, model_version, cluster_number)
+);
+
+create table if not exists public.pitcher_profiles (
+  id uuid primary key default gen_random_uuid(),
+  mlb_player_id integer not null references public.dim_players(mlb_player_id),
+  season integer not null,
+  period_start date not null,
+  period_end date not null,
+  total_pitches integer check (total_pitches >= 0),
+  batters_faced integer check (batters_faced >= 0),
+  starter_share numeric check (starter_share between 0 and 1),
+  primary_pitch_type text,
+  primary_pitch_usage numeric,
+  secondary_pitch_type text,
+  secondary_pitch_usage numeric,
+  pitch_type_count integer,
+  fastball_velocity numeric,
+  fastball_family_usage numeric,
+  breaking_ball_usage numeric,
+  offspeed_usage numeric,
+  arsenal_velocity_spread numeric,
+  primary_secondary_velocity_difference numeric,
+  horizontal_movement_range numeric,
+  vertical_movement_range numeric,
+  pitch_mix_entropy numeric,
+  overall_whiff_rate numeric,
+  overall_csw_rate numeric,
+  overall_xwoba_allowed numeric,
+  primary_archetype_id uuid,
+  archetype_probability numeric check (archetype_probability between 0 and 1),
+  outlier_score numeric,
+  map_x numeric,
+  map_y numeric,
+  feature_version text not null default 'pitcher_features_v1',
+  model_version text,
+  refreshed_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(season, period_start, period_end, mlb_player_id, feature_version)
+);
+
+create table if not exists public.pitcher_archetype_memberships (
+  id uuid primary key default gen_random_uuid(),
+  mlb_player_id integer not null references public.dim_players(mlb_player_id),
+  archetype_id uuid not null references public.pitcher_archetypes(archetype_id) on delete cascade,
+  season integer not null,
+  period_start date not null,
+  period_end date not null,
+  membership_probability numeric check (membership_probability between 0 and 1),
+  cluster_distance numeric,
+  is_primary boolean not null default false,
+  membership_rank integer,
+  model_version text not null,
+  feature_version text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(mlb_player_id, archetype_id, season, period_start, period_end, model_version)
+);
+
+create table if not exists public.pitcher_archetype_features (
+  id uuid primary key default gen_random_uuid(),
+  archetype_id uuid not null references public.pitcher_archetypes(archetype_id) on delete cascade,
+  feature_name text not null,
+  feature_mean numeric,
+  feature_stddev numeric,
+  league_percentile numeric check (league_percentile between 0 and 1),
+  importance_rank integer,
+  model_version text not null,
+  feature_version text not null,
+  created_at timestamptz not null default now(),
+  unique(archetype_id, feature_name, model_version)
+);
+
+create table if not exists public.pitcher_similarities (
+  id uuid primary key default gen_random_uuid(),
+  mlb_player_id integer not null references public.dim_players(mlb_player_id),
+  similar_mlb_player_id integer not null references public.dim_players(mlb_player_id),
+  season integer not null,
+  similarity_score numeric not null check (similarity_score between 0 and 1),
+  feature_distance numeric,
+  same_archetype boolean,
+  similarity_rank integer,
+  similarity_explanation text,
+  model_version text not null,
+  feature_version text not null,
+  calculated_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  check (mlb_player_id <> similar_mlb_player_id),
+  unique(mlb_player_id, similar_mlb_player_id, season, model_version)
+);
+
+create table if not exists public.pitcher_model_runs (
+  model_run_id uuid primary key default gen_random_uuid(),
+  model_name text not null default 'pitcher_archetypes',
+  model_version text not null,
+  model_type text not null default 'unsupervised_clustering',
+  season integer,
+  training_start_date date,
+  training_end_date date,
+  algorithm text,
+  feature_version text,
+  parameters jsonb,
+  silhouette_score numeric,
+  cluster_count integer,
+  pitcher_count integer,
+  status text not null check (status in ('running', 'success', 'failed')),
+  started_at timestamptz not null default now(),
+  completed_at timestamptz,
+  error_message text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists pitcher_pitch_profiles_player_idx on public.pitcher_pitch_profiles(mlb_player_id);
+create index if not exists pitcher_pitch_profiles_season_idx on public.pitcher_pitch_profiles(season);
+create index if not exists pitcher_pitch_profiles_pitch_type_idx on public.pitcher_pitch_profiles(pitch_type);
+create index if not exists pitcher_pitch_profiles_season_player_idx on public.pitcher_pitch_profiles(season, mlb_player_id);
+create index if not exists pitcher_pitch_profiles_season_pitch_idx on public.pitcher_pitch_profiles(season, pitch_type);
+create index if not exists pitcher_profiles_player_idx on public.pitcher_profiles(mlb_player_id);
+create index if not exists pitcher_profiles_season_idx on public.pitcher_profiles(season);
+create index if not exists pitcher_profiles_archetype_idx on public.pitcher_profiles(primary_archetype_id);
+create index if not exists pitcher_profiles_model_idx on public.pitcher_profiles(model_version);
+create index if not exists pitcher_profiles_season_model_idx on public.pitcher_profiles(season, model_version);
+create index if not exists pitcher_archetypes_season_idx on public.pitcher_archetypes(season);
+create index if not exists pitcher_archetypes_model_idx on public.pitcher_archetypes(model_version);
+create index if not exists pitcher_archetypes_slug_idx on public.pitcher_archetypes(archetype_slug);
+create index if not exists pitcher_archetypes_representative_idx on public.pitcher_archetypes(representative_mlb_player_id);
+create index if not exists pitcher_memberships_player_idx on public.pitcher_archetype_memberships(mlb_player_id);
+create index if not exists pitcher_memberships_archetype_idx on public.pitcher_archetype_memberships(archetype_id);
+create index if not exists pitcher_memberships_season_idx on public.pitcher_archetype_memberships(season);
+create index if not exists pitcher_memberships_model_idx on public.pitcher_archetype_memberships(model_version);
+create index if not exists pitcher_memberships_primary_idx on public.pitcher_archetype_memberships(is_primary);
+create index if not exists pitcher_archetype_features_archetype_idx on public.pitcher_archetype_features(archetype_id);
+create index if not exists pitcher_archetype_features_model_idx on public.pitcher_archetype_features(model_version);
+create index if not exists pitcher_archetype_features_rank_idx on public.pitcher_archetype_features(importance_rank);
+create index if not exists pitcher_similarities_player_idx on public.pitcher_similarities(mlb_player_id);
+create index if not exists pitcher_similarities_similar_player_idx on public.pitcher_similarities(similar_mlb_player_id);
+create index if not exists pitcher_similarities_season_idx on public.pitcher_similarities(season);
+create index if not exists pitcher_similarities_model_idx on public.pitcher_similarities(model_version);
+create index if not exists pitcher_similarities_rank_idx on public.pitcher_similarities(similarity_rank);
+create index if not exists pitcher_similarities_lookup_idx on public.pitcher_similarities(mlb_player_id, season, model_version, similarity_rank);
+create index if not exists pitcher_model_runs_name_idx on public.pitcher_model_runs(model_name);
+create index if not exists pitcher_model_runs_version_idx on public.pitcher_model_runs(model_version);
+create index if not exists pitcher_model_runs_season_idx on public.pitcher_model_runs(season);
+create index if not exists pitcher_model_runs_status_idx on public.pitcher_model_runs(status);
+create index if not exists pitcher_model_runs_started_idx on public.pitcher_model_runs(started_at);
+
+alter table public.pitcher_pitch_profiles enable row level security;
+alter table public.pitcher_profiles enable row level security;
+alter table public.pitcher_archetypes enable row level security;
+alter table public.pitcher_archetype_memberships enable row level security;
+alter table public.pitcher_archetype_features enable row level security;
+alter table public.pitcher_similarities enable row level security;
+alter table public.pitcher_model_runs enable row level security;
+
+drop policy if exists "Allow public read pitcher pitch profiles" on public.pitcher_pitch_profiles;
+create policy "Allow public read pitcher pitch profiles" on public.pitcher_pitch_profiles for select using (true);
+drop policy if exists "Allow public read pitcher profiles" on public.pitcher_profiles;
+create policy "Allow public read pitcher profiles" on public.pitcher_profiles for select using (true);
+drop policy if exists "Allow public read pitcher archetypes" on public.pitcher_archetypes;
+create policy "Allow public read pitcher archetypes" on public.pitcher_archetypes for select using (true);
+drop policy if exists "Allow public read pitcher memberships" on public.pitcher_archetype_memberships;
+create policy "Allow public read pitcher memberships" on public.pitcher_archetype_memberships for select using (true);
+drop policy if exists "Allow public read pitcher archetype features" on public.pitcher_archetype_features;
+create policy "Allow public read pitcher archetype features" on public.pitcher_archetype_features for select using (true);
+drop policy if exists "Allow public read pitcher similarities" on public.pitcher_similarities;
+create policy "Allow public read pitcher similarities" on public.pitcher_similarities for select using (true);
+drop policy if exists "Allow public read pitcher model runs" on public.pitcher_model_runs;
+create policy "Allow public read pitcher model runs" on public.pitcher_model_runs for select using (true);
+
 create table if not exists public.blog_posts (
   id bigint generated by default as identity primary key,
   slug text not null unique,

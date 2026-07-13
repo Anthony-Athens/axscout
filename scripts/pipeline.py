@@ -7,6 +7,7 @@ from scripts.pipelines.build_team_rolling_14_pipeline import (
 )
 from scripts.config.settings import (
     ENABLE_ODDS,
+    ENABLE_PITCHER_ARCHETYPES,
     ENABLE_PREDICTION_TRACKING,
     ENABLE_PREDICTIONS,
     ENABLE_PITCHING_SUMMARY,
@@ -109,6 +110,21 @@ def main() -> None:
         )
     else:
         print("Skipping Player Rolling 7 Statcast Aggregates (disabled).")
+
+    if ENABLE_PITCHER_ARCHETYPES:
+        print(
+            "ENABLE_PITCHER_ARCHETYPES=true; running pitcher archetype pipeline"
+        )
+        from scripts.pipelines.build_pitcher_archetypes_pipeline import (
+            main as build_pitcher_archetypes_pipeline,
+        )
+
+        run_pipeline("Build Pitcher Archetypes", build_pitcher_archetypes_pipeline)
+    else:
+        print(
+            "ENABLE_PITCHER_ARCHETYPES not enabled; skipping pitcher "
+            "archetype pipeline"
+        )
 
     if ENABLE_PITCHING_SUMMARY:
         print(

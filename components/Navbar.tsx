@@ -20,6 +20,7 @@ export default async function Navbar() {
           <Link href="/dashboard" className="hover:text-blue-600">Dashboard</Link>
           <Link href="/trends/team" className="hover:text-blue-600">Team Trends</Link>
           <Link href="/trends/individual" className="hover:text-blue-600">Player Trends</Link>
+          <Link href="/pitchers" className="hover:text-blue-600">Pitchers</Link>
           <Link href="/scouting-report" className="hover:text-blue-600">Scouting Report</Link>
           <Link href="/predictions" className="hover:text-blue-600">Predictions</Link>
           <Link href="/blog" className="hover:text-blue-600">Blog</Link>
