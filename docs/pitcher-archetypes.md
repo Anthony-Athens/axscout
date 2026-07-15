@@ -5,6 +5,34 @@ and precomputed similar-pitcher relationships. It does not persist raw pitches,
 change predictions or scouting calculations, or generate model labels with an
 LLM.
 
+## User-facing purpose
+
+The Pitcher Archetype Explorer gives users a practical starting point for
+understanding MLB pitchers through arsenal shape, pitch mix, velocity,
+movement, outcome indicators, and similar-pitcher relationships. It is an
+orientation and comparison tool: archetypes add context to a pitcher's profile
+but do not replace individual scouting, projection, or matchup analysis.
+
+The pitcher routes have distinct jobs:
+
+- `/pitchers` is the primary explorer. It supports searching and filtering
+  individual pitchers, comparing key arsenal indicators, and opening a
+  pitcher's similarity profile.
+- `/pitchers/archetypes` is the archetype library. It starts with the modeled
+  groups and explains their defining standardized features, members, and
+  available team and batter matchup context.
+- `/pitchers/[pitcherId]` summarizes one pitcher's arsenal, primary archetype,
+  pitch-type characteristics, and nearest modeled pitchers.
+- `/pitchers/archetypes/[slug]` explains one modeled group in detail. Stored
+  names and descriptions are shown conservatively and are not embellished in
+  the frontend.
+
+Archetype names can be model-generated placeholders unless they have been
+manually reviewed. Cluster membership is relative to the eligible pitchers,
+feature set, season, and analysis window used in a particular model run. It
+should not be interpreted as a permanent baseball taxonomy or a claim that all
+pitchers in a group perform identically.
+
 ## Data model
 
 - `pitcher_pitch_profiles`: observed pitch-type arsenal aggregates by pitcher,
@@ -108,8 +136,9 @@ The axes are model similarity-space coordinates. They are not velocity,
 movement, performance, quality, or any other direct baseball metric, and their
 orientation can change between model versions. Phase 1B does not synthesize
 coordinates in the browser or change the model pipeline. If `map_x` and `map_y`
-are null, the page displays an explicit empty state until an upstream model run
-stores coordinates.
+are null, the page displays a polished coming-soon state until an upstream
+model run stores coordinates. A missing map does not mean pitcher profiles or
+archetype memberships are unavailable.
 
 The map supports season, archetype, and pitcher-name filters. A role filter is
 shown only when `starter_share` exists. Hover details expose the pitcher's
@@ -194,6 +223,14 @@ prediction transparency fields contain archetype names, OPS, xwOBA, and sample
 quality; they do not claim an individual-pitcher projection.
 
 ## Limitations and next phases
+
+All displayed rates and matchup aggregates are sensitive to sample size and
+the selected analysis window. Small pitch totals can make arsenal usage,
+whiff, and contact-quality metrics unstable. Similarity scores describe
+distance in the standardized feature matrix; they do not imply identical
+talent, future performance, pitch quality, role, health, or developmental
+trajectory. Compare seasons and model versions cautiously because the eligible
+population, inputs, cluster identities, and map orientation can change.
 
 Phase 1A does not infer starter share, VAA, or HAA; does not persist raw pitches;
 and uses baseline K-Means rather than a validated baseball taxonomy. Cluster
