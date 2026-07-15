@@ -23,7 +23,7 @@ def _clean_name(value) -> str | None:
     return name
 
 
-def _build_session() -> requests.Session:
+def build_mlb_people_session() -> requests.Session:
     retry = Retry(
         total=3,
         backoff_factor=0.5,
@@ -35,14 +35,14 @@ def _build_session() -> requests.Session:
     return session
 
 
-def fetch_mlb_player_name(
+def fetch_mlb_player_metadata(
     mlb_player_id: int,
     session: requests.Session | None = None,
-) -> str | None:
+) -> dict[str, str | None] | None:
     if mlb_player_id < 1:
         raise ValueError("mlb_player_id must be a positive integer.")
 
-    client = session or _build_session()
+    client = session or build_mlb_people_session()
     url = MLB_PEOPLE_URL_TEMPLATE.format(mlb_player_id=mlb_player_id)
 
     try:
@@ -67,10 +67,29 @@ def fetch_mlb_player_name(
         return None
 
     person = people[0]
+    name = None
     for field in NAME_FIELDS:
         name = _clean_name(person.get(field))
         if name:
-            return name
+            break
+
+    pitch_hand = person.get("pitchHand") or {}
+    throws = _clean_name(pitch_hand.get("code"))
+    if throws:
+        throws = throws.upper()
+        if throws not in {"R", "L", "S"}:
+            throws = None
+
+    return {"full_name": name, "throws": throws}
+
+
+def fetch_mlb_player_name(
+    mlb_player_id: int,
+    session: requests.Session | None = None,
+) -> str | None:
+    metadata = fetch_mlb_player_metadata(mlb_player_id, session=session)
+    if metadata and metadata["full_name"]:
+        return metadata["full_name"]
 
     print(f"MLB people lookup returned no name for {mlb_player_id}.")
     return None
@@ -78,7 +97,7 @@ def fetch_mlb_player_name(
 
 def fetch_mlb_player_names(player_ids: list[int]) -> dict[int, str]:
     names = {}
-    session = _build_session()
+    session = build_mlb_people_session()
 
     try:
         for player_id in player_ids:

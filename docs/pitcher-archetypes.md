@@ -71,6 +71,83 @@ Do not rename archetypes blindly. Review cluster features and representative
 pitchers first. Because slugs are used in archetype URLs, coordinate a slug
 change with any saved or externally shared links.
 
+## Pitcher handedness metadata
+
+`public.dim_players.throws` is the canonical throwing-hand field. Pitcher
+profile and Matchups queries join `pitcher_profiles.mlb_player_id` to
+`dim_players.mlb_player_id`; handedness is intentionally not duplicated in
+`pitcher_profiles` or `pitcher_pitch_profiles`.
+
+The handedness backfill reads eligible pitcher IDs from `pitcher_profiles`,
+requests each player's MLB People record, and stores the validated
+`pitchHand.code` value (`R`, `L`, or `S`) only when `dim_players.throws` is null.
+It does not overwrite existing player metadata or infer values from names or
+pitch characteristics.
+
+Run:
+
+```bash
+python -m scripts.pipelines.backfill_player_handedness_pipeline
+```
+
+The run is recorded in `data_refresh_runs` as
+`backfill_player_handedness_pipeline` and logs players checked, updated,
+skipped, and errored. MLB records that are unavailable or omit `pitchHand` are
+left null. The Pitcher Explorer hides its Hand filter and column when every
+loaded profile has null handedness; with partial coverage it displays an em
+dash for missing rows. Pitcher profiles omit the throwing-hand phrase when it
+is unknown, while Matchups explicitly marks it unavailable.
+
+For opt-in, count-only server diagnostics, set
+`PITCHER_METADATA_DIAGNOSTICS=true`. The pitcher data helper then logs profile
+rows, joined `dim_players` rows, and joined rows with non-null `throws`; it does
+not log player records or credentials.
+
+### Handedness validation SQL
+
+Confirm the actual `dim_players` columns:
+
+```sql
+select column_name, data_type
+from information_schema.columns
+where table_schema = 'public'
+  and table_name = 'dim_players'
+order by ordinal_position;
+```
+
+Check overall metadata population:
+
+```sql
+select
+  count(*) as total_players,
+  count(*) filter (where throws is not null) as players_with_throws
+from public.dim_players;
+```
+
+Check pitcher-profile join coverage and handedness together:
+
+```sql
+select
+  count(*) as pitcher_profiles,
+  count(dp.*) as joined_players,
+  count(*) filter (where dp.throws is not null) as joined_players_with_throws
+from public.pitcher_profiles pp
+left join public.dim_players dp
+  on dp.mlb_player_id = pp.mlb_player_id;
+```
+
+If join coverage is incomplete, inspect the missing MLB IDs before running a
+backfill:
+
+```sql
+select distinct pp.mlb_player_id
+from public.pitcher_profiles pp
+left join public.dim_players dp
+  on dp.mlb_player_id = pp.mlb_player_id
+where dp.mlb_player_id is null
+order by pp.mlb_player_id;
+```
+
 ## Data model
 
 - `pitcher_pitch_profiles`: observed pitch-type arsenal aggregates by pitcher,

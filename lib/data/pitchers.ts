@@ -90,6 +90,10 @@ async function hydrateProfiles(rows: ProfileRow[]): Promise<PitcherProfile[]> {
   const playerMap = new Map(((players ?? []) as PlayerRow[]).map((row) => [row.mlb_player_id, row]));
   const archetypeMap = new Map(((archetypes ?? []) as Pick<ArchetypeRow, "archetype_id" | "archetype_name" | "archetype_slug">[]).map((row) => [row.archetype_id, row]));
   const teamMap = new Map(((teams ?? []) as TeamRow[]).map((row) => [row.abbreviation, row.name]));
+  if (process.env.PITCHER_METADATA_DIAGNOSTICS === "true") {
+    const playerRows = (players ?? []) as PlayerRow[];
+    console.info(`[pitchers] profiles=${rows.length} joined_players=${playerRows.length} joined_with_throws=${playerRows.filter((row) => row.throws !== null && row.throws.trim() !== "").length}`);
+  }
   return rows.map((row) => {
     const player = playerMap.get(row.mlb_player_id);
     const archetype = row.primary_archetype_id ? archetypeMap.get(row.primary_archetype_id) : undefined;
