@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export type PitcherProfile = {
   mlbPlayerId: number; fullName: string; throws: string | null;
+  teamAbbreviation: string | null; teamName: string | null;
   season: number; periodStart: string; periodEnd: string; totalPitches: number;
   primaryPitchType: string | null; primaryPitchUsage: number | null;
   secondaryPitchType: string | null; fastballVelocity: number | null;
@@ -65,7 +66,8 @@ type ProfileRow = {
   map_x: number | null; map_y: number | null; starter_share: number | null;
   feature_version: string;
 };
-type PlayerRow = { mlb_player_id: number; full_name: string | null; throws: string | null };
+type PlayerRow = { mlb_player_id: number; full_name: string | null; throws: string | null; current_team_abbreviation: string | null };
+type TeamRow = { abbreviation: string; name: string };
 type ArchetypeRow = {
   archetype_id: string; archetype_name: string; archetype_slug: string;
   short_description: string | null; season: number; model_version: string;
@@ -78,20 +80,25 @@ async function hydrateProfiles(rows: ProfileRow[]): Promise<PitcherProfile[]> {
   const supabase = await createClient();
   const playerIds = [...new Set(rows.map((row) => row.mlb_player_id))];
   const archetypeIds = [...new Set(rows.map((row) => row.primary_archetype_id).filter((id): id is string => Boolean(id)))];
-  const [{ data: players }, { data: archetypes }] = await Promise.all([
-    supabase.from("dim_players").select("mlb_player_id,full_name,throws").in("mlb_player_id", playerIds),
+  const [{ data: players }, { data: archetypes }, { data: teams }] = await Promise.all([
+    supabase.from("dim_players").select("mlb_player_id,full_name,throws,current_team_abbreviation").in("mlb_player_id", playerIds),
     archetypeIds.length
       ? supabase.from("pitcher_archetypes").select("archetype_id,archetype_name,archetype_slug").in("archetype_id", archetypeIds)
       : Promise.resolve({ data: [], error: null }),
+    supabase.from("dim_teams").select("abbreviation,name"),
   ]);
   const playerMap = new Map(((players ?? []) as PlayerRow[]).map((row) => [row.mlb_player_id, row]));
   const archetypeMap = new Map(((archetypes ?? []) as Pick<ArchetypeRow, "archetype_id" | "archetype_name" | "archetype_slug">[]).map((row) => [row.archetype_id, row]));
+  const teamMap = new Map(((teams ?? []) as TeamRow[]).map((row) => [row.abbreviation, row.name]));
   return rows.map((row) => {
     const player = playerMap.get(row.mlb_player_id);
     const archetype = row.primary_archetype_id ? archetypeMap.get(row.primary_archetype_id) : undefined;
     return {
       mlbPlayerId: row.mlb_player_id, fullName: player?.full_name ?? `MLB pitcher ${row.mlb_player_id}`,
-      throws: player?.throws ?? null, season: row.season, periodStart: row.period_start,
+      throws: player?.throws ?? null,
+      teamAbbreviation: player?.current_team_abbreviation ?? null,
+      teamName: player?.current_team_abbreviation ? teamMap.get(player.current_team_abbreviation) ?? null : null,
+      season: row.season, periodStart: row.period_start,
       periodEnd: row.period_end, totalPitches: row.total_pitches ?? 0,
       primaryPitchType: row.primary_pitch_type, primaryPitchUsage: row.primary_pitch_usage,
       secondaryPitchType: row.secondary_pitch_type, fastballVelocity: row.fastball_velocity,
@@ -138,7 +145,7 @@ export async function listPitcherArchetypes(): Promise<DataResult<PitcherArchety
   const playerIds = rows.map((row) => row.representative_mlb_player_id).filter((id): id is number => id !== null);
   const [{ data: features }, { data: players }] = await Promise.all([
     ids.length ? supabase.from("pitcher_archetype_features").select("archetype_id,feature_name,feature_mean,feature_stddev,league_percentile,importance_rank").in("archetype_id", ids).lte("importance_rank", 5).order("importance_rank") : Promise.resolve({ data: [], error: null }),
-    playerIds.length ? supabase.from("dim_players").select("mlb_player_id,full_name,throws").in("mlb_player_id", playerIds) : Promise.resolve({ data: [], error: null }),
+    playerIds.length ? supabase.from("dim_players").select("mlb_player_id,full_name,throws,current_team_abbreviation").in("mlb_player_id", playerIds) : Promise.resolve({ data: [], error: null }),
   ]);
   type FeatureRow = { archetype_id: string; feature_name: string; feature_mean: number | null; feature_stddev: number | null; league_percentile: number | null; importance_rank: number | null };
   const featureRows = (features ?? []) as FeatureRow[];

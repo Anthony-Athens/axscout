@@ -37,6 +37,39 @@ feature set, season, and analysis window used in a particular model run. It
 should not be interpreted as a permanent baseball taxonomy or a claim that all
 pitchers in a group perform identically.
 
+## Reviewing and Naming Archetypes
+
+Use the following workflow when replacing model-generated placeholder labels
+with human-readable baseball language:
+
+1. Run the pitcher archetype pipeline for the intended season, window, model
+   version, and feature version.
+2. Review each archetype's representative pitchers and top defining features
+   in the Archetype Library and detail page.
+3. Assign a conservative human-readable name that the observed cluster
+   characteristics support.
+4. Add a short description for quick display and a longer description that
+   records the interpretation and its limits.
+5. Keep `model_version` and `feature_version` attached to the interpretation so
+   the label is not assumed to apply to a different clustering run.
+
+Example manual update:
+
+```sql
+update public.pitcher_archetypes
+set
+  archetype_name = 'Power Fastball / Slider Starters',
+  archetype_slug = 'power-fastball-slider-starters',
+  short_description = 'Pitchers built around high-velocity fastballs and a primary breaking ball.',
+  long_description = 'This archetype generally includes pitchers with elevated fastball velocity, strong breaking-ball usage, and above-average swing-and-miss indicators. Review representative pitchers and defining features before using this label broadly.',
+  updated_at = now()
+where archetype_id = '<ARCHETYPE_UUID>';
+```
+
+Do not rename archetypes blindly. Review cluster features and representative
+pitchers first. Because slugs are used in archetype URLs, coordinate a slug
+change with any saved or externally shared links.
+
 ## Data model
 
 - `pitcher_pitch_profiles`: observed pitch-type arsenal aggregates by pitcher,
