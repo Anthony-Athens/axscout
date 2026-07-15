@@ -26,6 +26,10 @@ The pitcher routes have distinct jobs:
 - `/pitchers/archetypes/[slug]` explains one modeled group in detail. Stored
   names and descriptions are shown conservatively and are not embellished in
   the frontend.
+- `/matchups` applies the selected pitcher's primary archetype to team and
+  batter research. It shows descriptive performance against the full
+  archetype, not a prediction for the selected individual pitcher. See
+  `docs/matchups.md` for data requirements and interpretation guidance.
 
 Archetype names can be model-generated placeholders unless they have been
 manually reviewed. Cluster membership is relative to the eligible pitchers,
