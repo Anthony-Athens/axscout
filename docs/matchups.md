@@ -6,10 +6,23 @@ pitcher's primary archetype. Users select a pitcher, opponent team, and season;
 the page then combines pitcher context, arsenal characteristics, team-level
 results, and batter-level results in one view.
 
-The page defaults to Paul Skenes and the Chicago Cubs when both are available
-in the selected matchup dataset. Otherwise, it falls back to the first pitcher
-and team with eligible archetype matchup data. Selections are represented in
-the URL with `pitcherId`, `team`, and `season` search parameters.
+The page defaults to the Pittsburgh Pirates (`PIT`), Paul Skenes, and the
+Chicago Cubs (`CHC`) when they are available in the selected matchup dataset.
+Name resolution accepts both `Paul Skenes` and `Skenes, Paul`. If multiple
+eligible Skenes profiles remain for the selected season and team, the page
+prefers the profile with the highest pitch total.
+
+The Pitcher Team control narrows the Pitcher control immediately. If a team
+change makes the current pitcher invalid, the control selects Paul Skenes when
+eligible for that team, then falls back to the first eligible pitcher. If PIT
+is unavailable, the first pitcher team is used; if CHC is unavailable, the
+first opponent is used. Selections are represented in the URL with
+`pitcherTeam`, `pitcherId`, `team`, and `season` search parameters.
+
+Pitcher team identity comes from `dim_players.current_team_abbreviation` and is
+hydrated in one batched query. If that field is not populated for eligible
+pitchers, the team control is disabled and the page falls back to the available
+pitcher list without fabricating team assignments.
 
 ## How archetypes power the page
 

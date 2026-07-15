@@ -9,6 +9,8 @@ export type MatchupPitcher = {
   mlbPlayerId: number;
   playerName: string;
   throws: string | null;
+  teamAbbreviation: string | null;
+  teamName: string | null;
   season: number;
   primaryArchetypeId: string;
   primaryArchetypeName: string;
@@ -26,6 +28,11 @@ export type MatchupTeam = {
   teamAbbreviation: string;
   teamName: string;
   season: number;
+};
+
+export type MatchupPitcherTeam = {
+  teamAbbreviation: string;
+  teamName: string;
 };
 
 export type MatchupArsenalRow = {
@@ -92,7 +99,7 @@ type PlayerRow = {
   mlb_player_id: number;
   full_name: string | null;
   throws: string | null;
-  current_team_abbreviation?: string | null;
+  current_team_abbreviation: string | null;
 };
 
 type ArchetypeRow = {
@@ -116,12 +123,14 @@ async function hydratePitchers(rows: ProfileRow[]): Promise<MatchupPitcher[]> {
   const supabase = await createClient();
   const playerIds = [...new Set(rows.map((row) => row.mlb_player_id))];
   const archetypeIds = [...new Set(rows.map((row) => row.primary_archetype_id))];
-  const [{ data: players }, { data: archetypes }] = await Promise.all([
-    supabase.from("dim_players").select("mlb_player_id,full_name,throws").in("mlb_player_id", playerIds),
+  const [{ data: players }, { data: archetypes }, { data: teams }] = await Promise.all([
+    supabase.from("dim_players").select("mlb_player_id,full_name,throws,current_team_abbreviation").in("mlb_player_id", playerIds),
     supabase.from("pitcher_archetypes").select("archetype_id,archetype_name,archetype_slug").in("archetype_id", archetypeIds),
+    supabase.from("dim_teams").select("abbreviation,name"),
   ]);
   const playerMap = new Map(((players ?? []) as PlayerRow[]).map((row) => [row.mlb_player_id, row]));
   const archetypeMap = new Map(((archetypes ?? []) as ArchetypeRow[]).map((row) => [row.archetype_id, row]));
+  const teamMap = new Map(((teams ?? []) as TeamLookupRow[]).map((row) => [row.abbreviation, row.name]));
   return rows.flatMap((row) => {
     const archetype = archetypeMap.get(row.primary_archetype_id);
     if (!archetype || !row.model_version) return [];
@@ -130,6 +139,8 @@ async function hydratePitchers(rows: ProfileRow[]): Promise<MatchupPitcher[]> {
       mlbPlayerId: row.mlb_player_id,
       playerName: player?.full_name ?? `MLB pitcher ${row.mlb_player_id}`,
       throws: player?.throws ?? null,
+      teamAbbreviation: player?.current_team_abbreviation ?? null,
+      teamName: player?.current_team_abbreviation ? teamMap.get(player.current_team_abbreviation) ?? null : null,
       season: row.season,
       primaryArchetypeId: row.primary_archetype_id,
       primaryArchetypeName: archetype.archetype_name,
@@ -143,6 +154,14 @@ async function hydratePitchers(rows: ProfileRow[]): Promise<MatchupPitcher[]> {
       refreshedAt: row.refreshed_at,
     }];
   });
+}
+
+export function getMatchupPitcherTeams(pitchers: MatchupPitcher[]): MatchupPitcherTeam[] {
+  const teams = new Map<string, string>();
+  for (const pitcher of pitchers) {
+    if (pitcher.teamAbbreviation) teams.set(pitcher.teamAbbreviation, pitcher.teamName ?? pitcher.teamAbbreviation);
+  }
+  return [...teams].map(([teamAbbreviation, teamName]) => ({ teamAbbreviation, teamName })).sort((a, b) => a.teamName.localeCompare(b.teamName));
 }
 
 export async function listMatchupPitchers(): Promise<MatchupDataResult<MatchupPitcher[]>> {

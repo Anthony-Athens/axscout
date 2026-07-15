@@ -17,7 +17,8 @@ The pitcher routes have distinct jobs:
 
 - `/pitchers` is the primary explorer. It supports searching and filtering
   individual pitchers, comparing key arsenal indicators, and opening a
-  pitcher's similarity profile.
+  pitcher's similarity profile. Pitcher names are the profile links so the
+  table can retain team and arsenal context without a separate action column.
 - `/pitchers/archetypes` is the archetype library. It starts with the modeled
   groups and explains their defining standardized features, members, and
   available team and batter matchup context.

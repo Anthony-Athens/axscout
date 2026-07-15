@@ -1,10 +1,12 @@
 import Link from "next/link";
 
+import MatchupControls from "@/components/MatchupControls";
 import PageHeader from "@/components/layout/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
 import SectionCard from "@/components/ui/SectionCard";
 import {
   getPitcherMatchupContext,
+  getMatchupPitcherTeams,
   listMatchupPitchers,
   listMatchupTeams,
   type MatchupBatterPerformance,
@@ -17,12 +19,18 @@ export const metadata = createPageMetadata({
   path: "/matchups",
 });
 
-type Search = { pitcherId?: string | string[]; team?: string | string[]; season?: string | string[] };
+type Search = { pitcherTeam?: string | string[]; pitcherId?: string | string[]; team?: string | string[]; season?: string | string[] };
 
 const first = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] : value;
 const pct = (value: number | null) => value === null ? "—" : `${(value * 100).toFixed(1)}%`;
 const num = (value: number | null, digits = 1) => value === null ? "—" : value.toFixed(digits);
 const sampleClass = { low: "bg-amber-50 text-amber-700", medium: "bg-blue-50 text-blue-700", high: "bg-emerald-50 text-emerald-700" };
+const normalizePitcherName = (name: string) => {
+  const normalized = name.trim().toLowerCase().replace(/\s+/g, " ");
+  if (!normalized.includes(",")) return normalized;
+  const [last, given] = normalized.split(",").map((part) => part.trim());
+  return `${given} ${last}`.trim();
+};
 
 function bestBy(rows: MatchupBatterPerformance[], value: (row: MatchupBatterPerformance) => number | null, direction: "highest" | "lowest" = "highest") {
   return rows.filter((row) => value(row) !== null).sort((a, b) => {
@@ -40,9 +48,16 @@ export default async function MatchupsPage({ searchParams }: { searchParams: Pro
   const selectedSeason = commonSeasons.includes(requestedSeason) ? requestedSeason : commonSeasons[0];
   const pitchers = pitcherResult.data.filter((pitcher) => pitcher.season === selectedSeason);
   const teams = teamResult.data.filter((team) => team.season === selectedSeason);
+  const pitcherTeams = getMatchupPitcherTeams(pitchers);
+  const requestedPitcherTeam = first(query.pitcherTeam)?.trim().toUpperCase();
+  const selectedPitcherTeam = pitcherTeams.find((team) => team.teamAbbreviation === requestedPitcherTeam)
+    ?? pitcherTeams.find((team) => team.teamAbbreviation === "PIT")
+    ?? pitcherTeams[0];
+  const teamPitchers = selectedPitcherTeam ? pitchers.filter((pitcher) => pitcher.teamAbbreviation === selectedPitcherTeam.teamAbbreviation) : pitchers;
   const requestedPitcherId = Number(first(query.pitcherId));
-  const selectedPitcher = pitchers.find((pitcher) => pitcher.mlbPlayerId === requestedPitcherId)
-    ?? pitchers.find((pitcher) => pitcher.playerName.toLowerCase() === "paul skenes")
+  const selectedPitcher = teamPitchers.find((pitcher) => pitcher.mlbPlayerId === requestedPitcherId)
+    ?? [...teamPitchers].sort((a, b) => b.totalPitches - a.totalPitches).find((pitcher) => normalizePitcherName(pitcher.playerName) === "paul skenes")
+    ?? teamPitchers[0]
     ?? pitchers[0];
   const requestedTeam = first(query.team)?.trim().toUpperCase();
   const selectedTeam = teams.find((team) => team.teamAbbreviation === requestedTeam)
@@ -70,12 +85,7 @@ export default async function MatchupsPage({ searchParams }: { searchParams: Pro
 
     <aside className="rounded-xl border border-blue-200 bg-blue-50 p-5 text-sm leading-6 text-slate-700">This view summarizes performance against pitchers in the selected pitcher’s archetype. It does not guarantee performance against the individual pitcher.</aside>
 
-    {pitchers.length && teams.length ? <form className="grid gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-4" aria-label="Matchup controls">
-      <label className="space-y-1.5 text-sm font-semibold text-slate-700"><span>Pitcher</span><select name="pitcherId" defaultValue={selectedPitcher?.mlbPlayerId} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-normal text-slate-900">{pitchers.map((pitcher) => <option key={pitcher.mlbPlayerId} value={pitcher.mlbPlayerId}>{pitcher.playerName} · {pitcher.primaryArchetypeName}</option>)}</select></label>
-      <label className="space-y-1.5 text-sm font-semibold text-slate-700"><span>Opponent team</span><select name="team" defaultValue={selectedTeam?.teamAbbreviation} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-normal text-slate-900">{teams.map((team) => <option key={team.teamAbbreviation} value={team.teamAbbreviation}>{team.teamName} ({team.teamAbbreviation})</option>)}</select></label>
-      <label className="space-y-1.5 text-sm font-semibold text-slate-700"><span>Season</span><select name="season" defaultValue={selectedSeason} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-normal text-slate-900">{commonSeasons.map((season) => <option key={season} value={season}>{season}</option>)}</select></label>
-      <button className="self-end rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">Update matchup</button>
-    </form> : <EmptyState title="Archetype matchup data is not available yet" description="Run the archetype matchup pipeline to populate this view." />}
+    {pitchers.length && teams.length && selectedPitcher && selectedTeam && selectedSeason ? <MatchupControls key={`${selectedSeason}-${selectedPitcherTeam?.teamAbbreviation ?? "all"}-${selectedPitcher.mlbPlayerId}-${selectedTeam.teamAbbreviation}`} pitchers={pitcherResult.data} opponentTeams={teamResult.data} seasons={commonSeasons} initialPitcherTeam={selectedPitcherTeam?.teamAbbreviation ?? ""} initialPitcherId={selectedPitcher.mlbPlayerId} initialOpponentTeam={selectedTeam.teamAbbreviation} initialSeason={selectedSeason} /> : <EmptyState title="Archetype matchup data is not available yet" description="Run the archetype matchup pipeline to populate this view." />}
 
     {context?.pitcher ? <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
       <div className="space-y-6">
