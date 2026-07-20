@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 
 import PageHeader from "@/components/layout/PageHeader";
 import SectionCard from "@/components/ui/SectionCard";
+import PremiumBadge from "@/components/access/PremiumBadge";
+import { getCurrentUserAccess } from "@/lib/access/entitlements";
 import { createClient } from "@/lib/supabase/server";
 import ProfileForm from "./ProfileForm";
 
@@ -14,6 +16,8 @@ export default async function ProfilePage() {
   if (!user) {
     redirect("/login");
   }
+
+  const access = await getCurrentUserAccess();
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -51,6 +55,10 @@ export default async function ProfilePage() {
               {fullName || "AXScout member"}
             </p>
             <p className="truncate text-sm text-slate-600">{user.email}</p>
+            <div className="mt-2 flex items-center gap-2 text-sm text-slate-600">
+              <span>Current Access:</span>
+              <PremiumBadge tier={access.tier} />
+            </div>
           </div>
         </div>
 
