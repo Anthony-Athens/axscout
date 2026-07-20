@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import UpgradeCta from "@/components/access/UpgradeCta";
 import MatchupControls from "@/components/MatchupControls";
 import PageHeader from "@/components/layout/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
@@ -11,6 +12,7 @@ import {
   listMatchupTeams,
   type MatchupBatterPerformance,
 } from "@/lib/data/matchups";
+import { getCurrentUserAccess } from "@/lib/access/entitlements";
 import { createPageMetadata } from "@/lib/metadata";
 
 export const metadata = createPageMetadata({
@@ -41,7 +43,9 @@ function bestBy(rows: MatchupBatterPerformance[], value: (row: MatchupBatterPerf
 }
 
 export default async function MatchupsPage({ searchParams }: { searchParams: Promise<Search> }) {
-  const query = await searchParams;
+  const [requestedQuery, access] = await Promise.all([searchParams, getCurrentUserAccess()]);
+  const canUpdate = access.features.matchupsInteractive;
+  const query = canUpdate ? requestedQuery : {};
   const [pitcherResult, teamResult] = await Promise.all([listMatchupPitchers(), listMatchupTeams()]);
   const commonSeasons = [...new Set(pitcherResult.data.map((pitcher) => pitcher.season).filter((season) => teamResult.data.some((team) => team.season === season)))].sort((a, b) => b - a);
   const requestedSeason = Number(first(query.season));
@@ -85,7 +89,9 @@ export default async function MatchupsPage({ searchParams }: { searchParams: Pro
 
     <aside className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-xs leading-5 text-slate-700 sm:text-sm sm:leading-6">This view summarizes performance against pitchers in the selected pitcher’s archetype. It does not guarantee performance against the individual pitcher.</aside>
 
-    {pitchers.length && teams.length && selectedPitcher && selectedTeam && selectedSeason ? <MatchupControls key={`${selectedSeason}-${selectedPitcherTeam?.teamAbbreviation ?? "all"}-${selectedPitcher.mlbPlayerId}-${selectedTeam.teamAbbreviation}`} pitchers={pitcherResult.data} opponentTeams={teamResult.data} seasons={commonSeasons} initialPitcherTeam={selectedPitcherTeam?.teamAbbreviation ?? ""} initialPitcherId={selectedPitcher.mlbPlayerId} initialOpponentTeam={selectedTeam.teamAbbreviation} initialSeason={selectedSeason} /> : <EmptyState responsive title="Archetype matchup data is not available yet" description="Run the archetype matchup pipeline to populate this view." />}
+    {pitchers.length && teams.length && selectedPitcher && selectedTeam && selectedSeason ? <MatchupControls key={`${selectedSeason}-${selectedPitcherTeam?.teamAbbreviation ?? "all"}-${selectedPitcher.mlbPlayerId}-${selectedTeam.teamAbbreviation}`} pitchers={pitcherResult.data} opponentTeams={teamResult.data} seasons={commonSeasons} initialPitcherTeam={selectedPitcherTeam?.teamAbbreviation ?? ""} initialPitcherId={selectedPitcher.mlbPlayerId} initialOpponentTeam={selectedTeam.teamAbbreviation} initialSeason={selectedSeason} canUpdate={canUpdate} /> : <EmptyState responsive title="Archetype matchup data is not available yet" description="Run the archetype matchup pipeline to populate this view." />}
+
+    {!canUpdate ? <aside className="rounded-xl border border-blue-200 bg-blue-50 p-5"><p className="font-semibold text-slate-950">Unlock this with AXScout Premium.</p><UpgradeCta className="mt-2" /></aside> : null}
 
     {context?.pitcher && selectedTeam ? <section aria-label="Selected matchup" className="flex min-w-0 flex-col gap-2 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0"><p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Selected Matchup</p><p className="mt-1 break-words text-lg font-bold text-slate-950 sm:text-xl">{context.pitcher.playerName} vs {selectedTeam.teamAbbreviation}</p></div>

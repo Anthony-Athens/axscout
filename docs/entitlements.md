@@ -31,6 +31,26 @@ Premium feature.
 Unauthenticated users and authenticated users without a current entitlement
 receive Free access.
 
+## Implemented paywall behavior
+
+- **Predictions:** Everyone can see model performance tracking. Free users see
+  one deterministic featured upcoming prediction (highest confidence, with the
+  existing date/game ordering as the tie-breaker); remaining premium fields are
+  locked. Premium and Pro users see every prediction and full details.
+- **Pitcher Archetype Explorer:** `/pitchers` requires Premium, while the
+  Archetype Library and archetype summaries under `/pitchers/archetypes` remain
+  free.
+- **Matchups:** Everyone can view the default matchup preview and selectors.
+  Custom URL/filter updates are enforced as Premium on the server, and the
+  update button is disabled for Free users.
+- **Scouting Report exports:** The report page remains public. Generating and
+  copying Markdown, HTML, or plain-text exports requires Pro. Export data is
+  passed to the client export component only for Pro users.
+
+Client-side scouting report export is currently backed by a server-side render
+gate. Any future PDF, download, or API export endpoint must repeat the Pro check
+inside its server action or route handler.
+
 ## Manual grants
 
 Run administrative SQL in a trusted Supabase environment. Replace

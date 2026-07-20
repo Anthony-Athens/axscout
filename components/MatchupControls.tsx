@@ -12,6 +12,7 @@ type Props = {
   initialPitcherId: number;
   initialOpponentTeam: string;
   initialSeason: number;
+  canUpdate: boolean;
 };
 
 const normalizePitcherName = (name: string) => {
@@ -33,7 +34,7 @@ const pitcherTeamsForSeason = (pitchers: MatchupPitcher[], season: number) => {
   return [...teams].map(([abbreviation, name]) => ({ abbreviation, name })).sort((a, b) => a.name.localeCompare(b.name));
 };
 
-export default function MatchupControls({ pitchers, opponentTeams, seasons, initialPitcherTeam, initialPitcherId, initialOpponentTeam, initialSeason }: Props) {
+export default function MatchupControls({ pitchers, opponentTeams, seasons, initialPitcherTeam, initialPitcherId, initialOpponentTeam, initialSeason, canUpdate }: Props) {
   const [season, setSeason] = useState(initialSeason);
   const [pitcherTeam, setPitcherTeam] = useState(initialPitcherTeam);
   const [pitcherId, setPitcherId] = useState(initialPitcherId);
@@ -73,7 +74,8 @@ export default function MatchupControls({ pitchers, opponentTeams, seasons, init
     <label className="min-w-0 space-y-1.5 text-sm font-semibold text-slate-700"><span>Pitcher</span><select name="pitcherId" value={pitcherId} onChange={(event) => setPitcherId(Number(event.target.value))} disabled={!filteredPitchers.length} className={selectClass}>{filteredPitchers.length ? filteredPitchers.map((pitcher) => <option key={pitcher.mlbPlayerId} value={pitcher.mlbPlayerId}>{pitcher.playerName} · {pitcher.primaryArchetypeName}</option>) : <option value={0}>No pitchers available</option>}</select></label>
     <label className="min-w-0 space-y-1.5 text-sm font-semibold text-slate-700"><span>Opponent Team</span><select name="team" value={opponentTeam} onChange={(event) => setOpponentTeam(event.target.value)} className={selectClass}>{seasonOpponentTeams.map((team) => <option key={team.teamAbbreviation} value={team.teamAbbreviation}>{team.teamName} ({team.teamAbbreviation})</option>)}</select></label>
     <label className="min-w-0 space-y-1.5 text-sm font-semibold text-slate-700"><span>Season</span><select name="season" value={season} onChange={(event) => changeSeason(Number(event.target.value))} className={selectClass}>{seasons.map((availableSeason) => <option key={availableSeason} value={availableSeason}>{availableSeason}</option>)}</select></label>
-    <button disabled={!filteredPitchers.length || !seasonOpponentTeams.length} className="w-full self-end rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300">Update Matchup</button>
+    <button disabled={!canUpdate || !filteredPitchers.length || !seasonOpponentTeams.length} className="w-full self-end rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300">Update Matchup</button>
+    {!canUpdate ? <p className="text-sm font-medium text-blue-700 md:col-span-2 lg:col-span-4 xl:col-span-5">Custom matchup updates are available with AXScout Premium.</p> : null}
     {!filteredPitchers.length ? <p className="text-sm text-amber-700 md:col-span-2 lg:col-span-4 xl:col-span-5">No pitchers with archetype data are available for this team yet.</p> : null}
   </form>;
 }

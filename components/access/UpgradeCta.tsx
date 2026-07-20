@@ -14,8 +14,8 @@ export default function UpgradeCta({
   return (
     <div className={className}>
       <p className="text-sm leading-6 text-slate-600">
-        Premium access is currently available to beta testers. Contact AXScout
-        to request access.
+        Premium and Pro access are currently available to beta testers. Contact
+        AXScout to request access.
       </p>
       <Link
         href={href}

@@ -1,8 +1,10 @@
 import Link from "next/link";
 
+import LockedFeatureCard from "@/components/access/LockedFeatureCard";
 import PageHeader from "@/components/layout/PageHeader";
 import EmptyState from "@/components/ui/EmptyState";
 import { getPitcherArchetypeRefreshStatus, listPitcherArchetypes, listPitchers } from "@/lib/data/pitchers";
+import { getCurrentUserAccess } from "@/lib/access/entitlements";
 import { createPageMetadata } from "@/lib/metadata";
 
 export const metadata = createPageMetadata({ title: "Pitcher Archetype Explorer", description: "Explore MLB pitcher archetypes, pitch mixes, arsenal profiles, similarity groups, and Statcast-powered pitcher classification with AXScout.", path: "/pitchers" });
@@ -11,7 +13,17 @@ const pct = (value: number | null) => value === null ? "—" : `${(value * 100).
 const num = (value: number | null, digits = 1) => value === null ? "—" : value.toFixed(digits);
 
 export default async function PitchersPage({ searchParams }: { searchParams: Promise<Search> }) {
-  const filters = await searchParams;
+  const [filters, access] = await Promise.all([searchParams, getCurrentUserAccess()]);
+
+  if (!access.features.pitcherExplorer) {
+    return <div className="space-y-8">
+      <PageHeader label="Pitcher Intelligence" title="Pitcher Archetype Explorer" description="Explore how MLB pitchers are grouped by arsenal shape, pitch mix, velocity, movement profile, and similar-pitcher relationships." />
+      <aside className="rounded-xl border border-blue-200 bg-blue-50 p-5 text-sm leading-6 text-slate-700"><span className="font-semibold text-slate-900">What is a pitcher archetype?</span> Pitcher archetypes group pitchers with similar pitch mixes, movement profiles, velocity bands, and outcome indicators. These groups help compare pitchers and evaluate matchup context.</aside>
+      <Link href="/pitchers/archetypes" className="block rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-300"><span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Free archetype education</span><span className="mt-2 block text-lg font-bold text-slate-950">View Archetype Library</span><span className="mt-1 block text-sm leading-6 text-slate-600">Review defining model features and pitchers assigned to each archetype.</span></Link>
+      <LockedFeatureCard title="Pitcher Archetype Explorer" description="Search, filter, and compare individual pitcher arsenals, profiles, and primary archetypes. Unlock this with AXScout Premium." requiredTier="premium" />
+    </div>;
+  }
+
   const [pitcherResult, archetypeResult, refreshResult] = await Promise.all([listPitchers(), listPitcherArchetypes(), getPitcherArchetypeRefreshStatus()]);
   const seasons = [...new Set(pitcherResult.data.map((row) => row.season))].sort((a, b) => b - a);
   const teams = [...new Map(pitcherResult.data.filter((row) => row.teamAbbreviation).map((row) => [row.teamAbbreviation, { abbreviation: row.teamAbbreviation!, name: row.teamName ?? row.teamAbbreviation! }])).values()].sort((a, b) => a.name.localeCompare(b.name));
