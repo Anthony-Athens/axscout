@@ -26,8 +26,6 @@ import type {
   ReportPlayer,
   ScoutingReportData,
 } from "@/lib/scouting-report-export";
-import LockedFeatureCard from "@/components/access/LockedFeatureCard";
-import { getCurrentUserAccess } from "@/lib/access/entitlements";
 
 export const metadata = createPageMetadata({
   title: "Scouting Report",
@@ -458,10 +456,7 @@ export default async function ScoutingReportPage({
     teamB?: string | string[];
   }>;
 }) {
-  const [supabase, access] = await Promise.all([
-    createClient(),
-    getCurrentUserAccess(),
-  ]);
+  const supabase = await createClient();
   const { data: teamsData } = await supabase
     .from("dim_teams")
     .select("team_key, abbreviation, name")
@@ -1774,17 +1769,7 @@ export default async function ScoutingReportPage({
         </div>
       </section>
 
-      {access.features.scoutingReportExport ? (
-        <ExportableScoutingReport data={exportReportData} />
-      ) : (
-        <div className="mt-8">
-          <LockedFeatureCard
-            title="Exportable Scouting Report"
-            description="Unlock exportable scouting reports with AXScout Pro. Copy Markdown, HTML, and plain-text exports are available to Pro users."
-            requiredTier="pro"
-          />
-        </div>
-      )}
+      <ExportableScoutingReport data={exportReportData} />
     </div>
   );
 }

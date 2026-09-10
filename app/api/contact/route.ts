@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 
 const INQUIRY_TYPES = new Set([
-  "Premium beta access",
   "Bug report",
   "Feature suggestion",
   "Collaboration",
@@ -196,10 +195,7 @@ export async function POST(request: Request) {
 
     return Response.json({
       success: true,
-      message:
-        inquiryType === "Premium beta access"
-          ? "Thanks - your beta access request was received. I'll review it and follow up."
-          : "Thanks - your message was sent. I'll review it soon.",
+      message: "Thanks - your message was sent. I'll review it soon.",
     });
   } catch (error) {
     console.error("Resend contact delivery failed.", error);

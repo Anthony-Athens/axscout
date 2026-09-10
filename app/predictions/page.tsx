@@ -1,9 +1,7 @@
-import UpgradeCta from "@/components/access/UpgradeCta";
 import PageHeader from "@/components/layout/PageHeader";
 import DashboardGrid from "@/components/ui/DashboardGrid";
 import SectionCard from "@/components/ui/SectionCard";
 import StatCard from "@/components/ui/StatCard";
-import { getCurrentUserAccess } from "@/lib/access/entitlements";
 import { createPageMetadata } from "@/lib/metadata";
 import { createClient } from "@/lib/supabase/server";
 
@@ -228,9 +226,6 @@ function predictedProbability(prediction: PredictionRow) {
     ? prediction.home_win_probability
     : prediction.away_win_probability;
 }
-
-const confidenceRank = { High: 3, Medium: 2, Low: 1 } as const;
-
 function formatAccuracy(rows: PredictionResultRow[]) {
   if (!rows.length) {
     return "--";
@@ -280,7 +275,7 @@ async function getPredictionResults(supabase: Supabase) {
 export default async function PredictionsPage() {
   const supabase = await createClient();
   const today = new Date().toISOString().slice(0, 10);
-  const [{ data: predictionData }, predictionResults, access] = await Promise.all([
+  const [{ data: predictionData }, predictionResults] = await Promise.all([
     supabase
       .from("game_predictions")
       .select(
@@ -293,7 +288,6 @@ export default async function PredictionsPage() {
       .order("mlb_game_pk")
       .limit(100),
     getPredictionResults(supabase),
-    getCurrentUserAccess(),
   ]);
 
   const predictions = (predictionData ?? []) as PredictionRow[];
@@ -346,15 +340,6 @@ export default async function PredictionsPage() {
     }
   );
   const recentResults = predictionResults.slice(0, 10);
-  const featuredPrediction = predictions.reduce<PredictionRow | undefined>(
-    (featured, prediction) => {
-      if (!featured) return prediction;
-      const featuredRank = featured.confidence ? confidenceRank[featured.confidence] : 0;
-      const predictionRank = prediction.confidence ? confidenceRank[prediction.confidence] : 0;
-      return predictionRank > featuredRank ? prediction : featured;
-    },
-    undefined
-  );
 
   return (
     <div className="space-y-8">
@@ -440,9 +425,7 @@ export default async function PredictionsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {predictions.map((prediction) => {
-                    const isLocked = !access.features.predictionsFull && prediction.mlb_game_pk !== featuredPrediction?.mlb_game_pk;
-                    return (
+                  {predictions.map((prediction) => (
                     <tr key={prediction.mlb_game_pk} className="align-top">
                       <td className="whitespace-nowrap px-4 py-4 font-semibold text-slate-950">
                         {prediction.away_team} at {prediction.home_team}
@@ -459,10 +442,10 @@ export default async function PredictionsPage() {
                         )}
                       </td>
                       <td className="min-w-72 px-4 py-4 text-slate-700">
-                        {isLocked ? <span className="font-medium text-slate-400">Premium</span> : matchupSummary(prediction)}
+                        {matchupSummary(prediction)}
                       </td>
                       <td className="min-w-64 px-4 py-4">
-                        {isLocked ? <p className="font-semibold text-blue-700">Unlock all predictions with AXScout Premium.</p> : <><p className="font-semibold text-blue-700">
+                        <p className="font-semibold text-blue-700">
                           {prediction.axscout_lean ?? "--"}
                         </p>
                         {prediction.explanation ? (
@@ -472,13 +455,13 @@ export default async function PredictionsPage() {
                             </summary>
                             <p className="mt-1">{prediction.explanation}</p>
                           </details>
-                        ) : null}</>}
+                        ) : null}
                       </td>
                       <td className="whitespace-nowrap px-4 py-4 font-semibold text-slate-950">
-                        {isLocked ? "Locked" : formatProbability(predictedProbability(prediction))}
+                        {formatProbability(predictedProbability(prediction))}
                       </td>
                       <td className="whitespace-nowrap px-4 py-4 text-slate-700">
-                        {isLocked ? "Locked" : prediction.confidence ?? "--"}
+                        {prediction.confidence ?? "--"}
                       </td>
                       <td className="min-w-52 px-4 py-4 text-slate-700">
                         {marketLine(prediction)}
@@ -489,7 +472,7 @@ export default async function PredictionsPage() {
                         ) : null}
                       </td>
                       <td className="min-w-56 px-4 py-4 text-slate-700">
-                        {isLocked ? "Unlock this with AXScout Premium." : prediction.edge_summary ?? "--"}
+                        {prediction.edge_summary ?? "--"}
                       </td>
                       <td className="whitespace-nowrap px-4 py-4 font-medium capitalize text-blue-700">
                         {prediction.prediction_status}
@@ -498,17 +481,10 @@ export default async function PredictionsPage() {
                         </span>
                       </td>
                     </tr>
-                    );
-                  })}
+                  ))}
                 </tbody>
               </table>
             </div>
-            {!access.features.predictionsFull && predictions.length > 1 ? (
-              <div className="border-t border-blue-200 bg-blue-50 p-5">
-                <p className="font-semibold text-slate-950">Unlock this with AXScout Premium.</p>
-                <UpgradeCta className="mt-2" />
-              </div>
-            ) : null}
           </div>
         ) : (
           <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm">

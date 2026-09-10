@@ -1,6 +1,6 @@
 # Contact & Collaboration
 
-The public Contact & Collaboration page sends structured inquiries through the server-only `POST /api/contact` route. It supports Premium beta requests, bug reports, feature suggestions, collaboration inquiries, custom analysis requests, data questions, and general messages.
+The public Contact & Collaboration page sends structured inquiries through the server-only `POST /api/contact` route. It supports bug reports, feature suggestions, collaboration inquiries, custom analysis requests, data questions, and general messages.
 
 ## Environment variables
 
@@ -26,10 +26,6 @@ The route includes the submitted timestamp, contact details, optional organizati
 
 Submissions are currently delivered by email and are not stored in Supabase. The application does not expose a service-role web client, so email delivery remains the safer production path without broadening database write permissions. Resend delivery history provides basic operational visibility.
 
-## Premium beta requests
-
-Premium access is manual during beta. Review messages with the `Premium beta access` inquiry type in the contact inbox, assess the request, and follow up using the supplied email address. This workflow does not grant an entitlement automatically.
-
 ## Operations
 
 - Verify the sending domain in Resend before launch.
@@ -42,5 +38,4 @@ Premium access is manual during beta. Review messages with the `Premium beta acc
 - Store submissions in a private Supabase admin inbox.
 - Add assignment and status workflow.
 - Send Slack notifications for priority inquiry types.
-- Connect approved requests to an automatic Premium invitation flow.
 - Add Cloudflare Turnstile or another challenge if honeypot protection becomes insufficient.

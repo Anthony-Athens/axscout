@@ -9,7 +9,6 @@ type SubmissionState =
   | { status: "error"; message: string };
 
 const inquiryTypes = [
-  "Premium beta access",
   "Bug report",
   "Feature suggestion",
   "Collaboration",
@@ -125,11 +124,6 @@ export default function ContactForm() {
         </select>
       </label>
 
-      {inquiryType === "Premium beta access" && (
-        <p className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-          Premium beta access is manually reviewed while AXScout is in beta.
-        </p>
-      )}
       {inquiryType === "Bug report" && (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           Please include the page URL, what happened, what you expected, and your browser or device when relevant.

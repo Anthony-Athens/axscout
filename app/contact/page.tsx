@@ -16,7 +16,7 @@ export default function ContactPage() {
       <PageHeader
         label="Connect with AXScout"
         title="Contact & Collaboration"
-        description="Request Premium beta access, report a bug, suggest an improvement, commission custom baseball analysis, or start a conversation about data and partnerships."
+        description="Report a bug, suggest an improvement, commission custom baseball analysis, or start a conversation about data and partnerships."
       />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
@@ -28,14 +28,6 @@ export default function ContactPage() {
         </SectionCard>
 
         <aside className="space-y-5">
-          <section className="rounded-xl border border-blue-200 bg-blue-50 p-6 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Limited beta</p>
-            <h2 className="mt-2 text-lg font-semibold text-slate-950">Premium Beta Access</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-700">
-              AXScout Premium is currently being tested with a small group of beta users. Use the form to request access.
-            </p>
-          </section>
-
           <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-slate-900">Good reasons to reach out</h2>
             <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
