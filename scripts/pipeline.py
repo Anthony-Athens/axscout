@@ -1,3 +1,7 @@
+import re
+import traceback
+from time import perf_counter
+
 from scripts.pipelines.build_warehouse_pipeline import main as build_warehouse_pipeline
 from scripts.pipelines.load_games_pipeline import main as load_games_pipeline
 from scripts.pipelines.build_team_daily_pipeline import main as build_team_daily_pipeline
@@ -19,20 +23,47 @@ from scripts.config.settings import (
     ENABLE_TEAM_ROLLING_7,
     ENABLE_TEAM_WEEKLY_STATCAST,
     SEASON_START_DATE,
+    ODDS_API_KEY,
+    SUPABASE_SERVICE_ROLE_KEY,
 )
 
 
 
-def run_pipeline(name: str, pipeline_func) -> None:
-    print(f"Starting pipeline: {name}")
+def _safe_traceback(error: Exception) -> str:
+    output = "".join(traceback.format_exception(error))
+    for secret in (SUPABASE_SERVICE_ROLE_KEY, ODDS_API_KEY):
+        if secret:
+            output = output.replace(secret, "[REDACTED]")
+    # URLs and HTTP exception messages can contain auth query parameters.
+    output = re.sub(
+        r"(?i)(api[_-]?key|apikey|authorization|service[_-]?role[_-]?key)"
+        r"(\s*[:=]\s*)[^\s&,]+",
+        r"\1\2[REDACTED]",
+        output,
+    )
+    return output
+
+
+def run_pipeline(name: str, pipeline_func, *, optional: bool = False):
+    started = perf_counter()
+    print(f"::group::Pipeline: {name}", flush=True)
+    print(f"Starting pipeline: {name}", flush=True)
 
     try:
-        pipeline_func()
-        print(f"Completed pipeline: {name}")
+        result = pipeline_func()
+        if result is False and optional:
+            print(f"Optional pipeline reported failure: {name}", flush=True)
+        else:
+            print(f"Completed pipeline: {name}", flush=True)
+        return result
     except Exception as error:
-        print(f"Failed pipeline: {name}")
-        print(error)
-        raise
+        print(f"Failed pipeline: {name}", flush=True)
+        print(_safe_traceback(error), flush=True)
+        # Avoid Python printing the unsanitized exception a second time.
+        raise SystemExit(1) from None
+    finally:
+        print(f"Pipeline elapsed: {name}: {perf_counter() - started:.2f}s", flush=True)
+        print("::endgroup::", flush=True)
 
 
 def main() -> None:
@@ -168,10 +199,9 @@ def main() -> None:
             main as load_player_injuries_pipeline,
         )
 
-        print("Starting pipeline: Load Player Injuries")
-        if load_player_injuries_pipeline():
-            print("Completed pipeline: Load Player Injuries")
-        else:
+        if not run_pipeline(
+            "Load Player Injuries", load_player_injuries_pipeline, optional=True
+        ):
             print(
                 "Player Injuries refresh failed; continuing because the "
                 "optional source must not block the daily pipeline."
